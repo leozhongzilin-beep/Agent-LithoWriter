@@ -27,6 +27,7 @@ def assemble(
     source_path: str,
     source_hash: str | None,
     version: str = "0.1.0",
+    bibtex: str | None = None,
 ) -> dict[str, Any]:
     """Build the canonical package dict."""
     return {
@@ -42,7 +43,7 @@ def assemble(
                 **l0,
                 "paper_id": "",
                 "citation_key": "",
-                "citation_cache": {},
+                "citation_cache": {"bibtex": bibtex} if bibtex else {},
                 "bibliographic_record": _bib_record(meta),
             },
             "L1": l1,

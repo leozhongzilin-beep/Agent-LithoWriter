@@ -32,6 +32,7 @@ def process_paper(
     """Parse a source and produce a canonical KB package dict."""
     doc = parser.parse_source(source_path)
     record = metadata.resolve_metadata(doi=doi, title=title or doc.title_hint)
+    bibtex = metadata.fetch_bibtex(record.doi) if (record and record.doi) else None
     pdf_meta = _pdf_metadata(source_path) if doc.source_type == "pdf" else None
     meta = metadata.merge_metadata(
         record, pdf_meta, title_override=title or doc.title_hint)
@@ -49,6 +50,7 @@ def process_paper(
         source_path=str(Path(source_path).resolve()),
         source_hash=_source_hash(source_path),
         version=__version__,
+        bibtex=bibtex,
     )
     package["validation_report"] = validate.validate(package)
     return package

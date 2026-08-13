@@ -52,6 +52,39 @@ def _http_get_json(url: str, timeout: int = 20) -> dict[str, Any] | None:
         return None
 
 
+def _http_get_bibtex(url: str, timeout: int = 20) -> str | None:
+    import requests
+
+    try:
+        resp = requests.get(
+            url, timeout=timeout,
+            headers={"Accept": "application/x-bibtex",
+                     "User-Agent": "paper2kb/0.1 (bibtex resolver)"},
+        )
+        resp.raise_for_status()
+        return resp.text
+    except (requests.RequestException, ValueError):
+        return None
+
+
+def fetch_bibtex(
+    doi: str | None,
+    *,
+    http_get: Callable[[str], str | None] = _http_get_bibtex,
+) -> str | None:
+    """Fetch the canonical BibTeX for a DOI from doi.org, or None.
+
+    Never guessed: a BibTeX is stored only when the DOI resolves and the body
+    actually starts with an entry marker ('@'). Fails soft (None) on any error.
+    """
+    if not doi or not doi.strip():
+        return None
+    text = http_get(f"https://doi.org/{doi.strip()}")
+    if text and text.lstrip().startswith("@"):
+        return text.strip()
+    return None
+
+
 def crossref_item_to_record(item: dict[str, Any]) -> BibRecord:
     """Map a Crossref /works item to a BibRecord (pure)."""
     authors = []

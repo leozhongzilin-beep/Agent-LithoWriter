@@ -5,6 +5,7 @@ from __future__ import annotations
 from paper2kb.metadata import (
     BibRecord,
     crossref_item_to_record,
+    fetch_bibtex,
     merge_metadata,
     resolve_metadata,
 )
@@ -66,3 +67,28 @@ def test_resolve_by_doi_uses_injected_http():
 
 def test_resolve_metadata_none_when_unresolvable():
     assert resolve_metadata(doi="10.0/nope", http_get=lambda u, **k: None) is None
+
+
+# ---------------------------------------------------------------------------
+# fetch_bibtex
+# ---------------------------------------------------------------------------
+
+def test_fetch_bibtex_returns_stripped_entry():
+    bib = "@article{zhang2024deepilt,\n  title = {Deep Learning}\n}"
+    got = fetch_bibtex("10.9999/x", http_get=lambda u, **k: bib)
+    assert got == bib.strip()
+    assert got.startswith("@")
+
+
+def test_fetch_bibtex_requires_doi():
+    assert fetch_bibtex("", http_get=lambda u, **k: "@x{}") is None
+    assert fetch_bibtex(None, http_get=lambda u, **k: "@x{}") is None
+
+
+def test_fetch_bibtex_rejects_non_bibtex_body():
+    assert fetch_bibtex("10.9999/x",
+                        http_get=lambda u, **k: "<html>not a bibtex</html>") is None
+
+
+def test_fetch_bibtex_none_on_request_failure():
+    assert fetch_bibtex("10.9999/x", http_get=lambda u, **k: None) is None

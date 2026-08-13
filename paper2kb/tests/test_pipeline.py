@@ -153,3 +153,35 @@ def test_emit_leaves_paper_id_and_citation_key_for_kb(tmp_path):
     pkg = process_paper(src, llm=_mock_llm())
     assert pkg["paper"]["L0"]["paper_id"] == ""
     assert pkg["paper"]["L0"]["citation_key"] == ""
+
+
+def test_pipeline_no_doi_leaves_empty_citation_cache(tmp_path):
+    # autouse _offline_metadata fixture: BibRecord(year=2024), no DOI -> no bibtex
+    src = _write_source(tmp_path)
+    pkg = process_paper(src, llm=_mock_llm())
+    assert pkg["paper"]["L0"]["citation_cache"] == {}
+
+
+def test_pipeline_attaches_bibtex_from_doi(tmp_path, monkeypatch):
+    from paper2kb.metadata import BibRecord
+
+    _BIB = "@article{zhang2024deepilt,\n  title = {Deep Learning for Inverse Lithography},\n  year = {2024}\n}"
+    monkeypatch.setattr(
+        "paper2kb.metadata.resolve_metadata",
+        lambda doi=None, title=None, **kw: BibRecord(year=2024, doi="10.9999/x"),
+    )
+    monkeypatch.setattr(
+        "paper2kb.metadata.fetch_bibtex",
+        lambda doi, **kw: _BIB if doi == "10.9999/x" else None,
+    )
+    src = _write_source(tmp_path)
+    pkg = process_paper(src, llm=_mock_llm())
+    cc = pkg["paper"]["L0"]["citation_cache"]
+    assert cc.get("bibtex") == _BIB
+    # and the KB's import ladder derives the lowercase bibtex_key from it
+    from kb.importtool import import_package
+    from kb.store import KBStore
+    kbs = KBStore(tmp_path / "kbdata")
+    kbs.init()
+    res = import_package(kbs, pkg)
+    assert kbs.get_paper(res.paper_id)["bibtex_key"] == "zhang2024deepilt"
