@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from kb.importtool import import_package
-from kb.retrieve import ResolvedCitation, RetrievalService
+from kb.retrieve import RetrievalService
 
 
 def _seed(tmp_kb, make_package, **L0_overrides):
