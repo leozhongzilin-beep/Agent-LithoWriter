@@ -31,7 +31,11 @@ class Pipeline:
             temperature=config.temperature,
             max_tokens=config.max_tokens,
         )
-        self.citation_resolver = CitationResolver(config) if config.dblp_verify else None
+        self.citation_resolver = (
+            CitationResolver(config)
+            if (config.dblp_verify or config.kb_path)
+            else None
+        )
 
     def log(self, msg: str) -> None:
         if self.verbose:
