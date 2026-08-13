@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+
+# Environment / secrets
+.env
+
+# Generated output (reference paper, reports)
+output/
+
+# Literature KB runtime data (created by `kb init`; not source)
+literature_kb/data/
+
+# OS
+.DS_Store

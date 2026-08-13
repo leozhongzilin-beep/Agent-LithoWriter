@@ -1,0 +1,7 @@
+# Literature Knowledge Base dependencies
+# Python 3.9+
+PyYAML>=6.0                  # YAML package input + ontology seeds
+numpy>=1.21                  # vector embeddings (BLOB storage + brute-force cosine)
+citeproc-py>=0.10            # CSL citation rendering (runtime-dep, degrades gracefully)
+sentence-transformers>=2.2   # local embeddings (lazy-loaded; torch already present)
+pytest>=7.0                  # tests

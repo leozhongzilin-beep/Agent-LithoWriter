@@ -1,0 +1,58 @@
+# ILT concept taxonomy (seed for the concepts table).
+# concept_id / canonical_name are the relational truth; aliases drive the
+# retrieval concept-expansion hook; parent/child refs are validated against
+# existing concept_ids (orphans are an error, never silently accepted).
+concepts:
+  - concept_id: mask-optimization
+    canonical_name: Mask optimization
+    aliases: [mask optimization, mask synthesis]
+    related_methods: [OPC, SMO, ILT]
+
+  - concept_id: ilt
+    canonical_name: Inverse Lithography Technology
+    aliases: [ILT, inverse lithography, inverse mask synthesis]
+    parent_concepts: [mask-optimization]
+    child_concepts: [gpu-levelset-ilt, simple-ilt, ai-ilt]
+    related_methods: [OPC, SMO]
+
+  - concept_id: gpu-levelset-ilt
+    canonical_name: GPU level-set ILT
+    aliases: [GPU level-set ILT, level-set ILT]
+    parent_concepts: [ilt]
+
+  - concept_id: simple-ilt
+    canonical_name: Simple ILT
+    aliases: [simple ILT]
+    parent_concepts: [ilt]
+
+  - concept_id: ai-ilt
+    canonical_name: AI-ILT
+    aliases: [AI-ILT, AI based inverse lithography, ai-driven ILT]
+    parent_concepts: [ilt]
+    child_concepts: [deep-learning-ilt, neural-mask-synthesis, learning-based-mask-opt]
+
+  - concept_id: deep-learning-ilt
+    canonical_name: Deep-learning ILT
+    aliases: [deep learning ILT, deep-learning-based ILT, DL-ILT]
+    parent_concepts: [ai-ilt]
+    child_concepts: [cnn-ilt, transformer-ilt]
+
+  - concept_id: cnn-ilt
+    canonical_name: CNN-based ILT
+    aliases: [CNN ILT, convolutional ILT]
+    parent_concepts: [deep-learning-ilt]
+
+  - concept_id: transformer-ilt
+    canonical_name: Transformer-based ILT
+    aliases: [transformer ILT]
+    parent_concepts: [deep-learning-ilt]
+
+  - concept_id: neural-mask-synthesis
+    canonical_name: Neural mask synthesis
+    aliases: [neural mask synthesis, neural mask generation]
+    parent_concepts: [ai-ilt]
+
+  - concept_id: learning-based-mask-opt
+    canonical_name: Learning-based mask optimization
+    aliases: [learning-based mask optimization, learned mask optimization]
+    parent_concepts: [ai-ilt]

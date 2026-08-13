@@ -1,0 +1,3 @@
+display_name: SPIE Format Summary
+short_description: Summarize research material into a SPIE-ready handoff contract.
+default_prompt: Convert this research material into a SPIE format summary and SPIE input contract for a downstream paper-writing agent.

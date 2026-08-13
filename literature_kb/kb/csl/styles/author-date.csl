@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" demote-non-drafting-authors="never">
+  <info>
+    <title>Author-Date (minimal)</title>
+    <id>http://zotero.org/styles/minimal-author-date</id>
+    <updated>2020-01-01T00:00:00+00:00</updated>
+  </info>
+  <citation collapse="year">
+    <layout prefix="(" suffix=")" delimiter="; ">
+      <group delimiter=", ">
+        <names variable="author">
+          <name form="short" and="symbol" delimiter=", "/>
+          <substitute>
+            <text variable="title"/>
+          </substitute>
+        </names>
+        <date variable="issued">
+          <date-part name="year"/>
+        </date>
+      </group>
+    </layout>
+  </citation>
+  <bibliography>
+    <layout suffix=".">
+      <group delimiter=". ">
+        <names variable="author">
+          <name form="long" and="text"/>
+        </names>
+        <date variable="issued">
+          <date-part name="year"/>
+        </date>
+        <text variable="title"/>
+        <text variable="container-title"/>
+        <text variable="DOI" prefix="doi:"/>
+      </group>
+    </layout>
+  </bibliography>
+</style>

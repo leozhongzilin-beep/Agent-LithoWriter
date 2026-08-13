@@ -1,0 +1,48 @@
+# Metric ontology seed (metrics_ontology table).
+# comparability_rules feed the comparison_validity guidance; common_pitfalls
+# encode the no-fabrication guard (e.g. TAT != inference time).
+metrics:
+  - metric_name: EPE
+    canonical_definition: Edge placement error between printed and target edges.
+    aliases: [EPE, edge placement error, edge placement error (EPE)]
+    unit: nm
+    category: accuracy
+    measurement_scope: per-edge / per-pattern
+    comparability_rules: Only comparable on the same pattern set, lithography condition and threshold.
+    common_pitfalls: Averaging across heterogeneous pattern densities.
+
+  - metric_name: PVBand
+    canonical_definition: Process variation band, the ||Z_max - Z_min|| envelope over a process window.
+    aliases: [PVBand, PV Band, process variation band]
+    unit: nm
+    category: robustness
+    measurement_scope: focus/dose window
+    comparability_rules: Requires the same focus/exposure window.
+    common_pitfalls: Comparing bands measured over different process windows.
+
+  - metric_name: TAT
+    canonical_definition: Turnaround time of the full mask optimization flow.
+    aliases: [TAT, turnaround time]
+    unit: s
+    category: efficiency
+    measurement_scope: full flow
+    comparability_rules: Never equate TAT with single inference time.
+    common_pitfalls: Mixing per-iteration and end-to-end timings.
+
+  - metric_name: Shots
+    canonical_definition: Number of shots in the final mask.
+    aliases: [Shots, shot count, VSB shots, shot count]
+    unit: count
+    category: manufacturability
+    measurement_scope: full mask
+    comparability_rules: Same MDP/fracturing toolchain.
+    common_pitfalls: Different fracturing tools give different shot counts.
+
+  - metric_name: Runtime
+    canonical_definition: Wall-clock runtime of a method or pipeline stage.
+    aliases: [Runtime, runtime, inference time, optimization time]
+    unit: s
+    category: efficiency
+    measurement_scope: stage-dependent
+    comparability_rules: State the hardware and the measured stage; inference time != total runtime.
+    common_pitfalls: Comparing runtimes measured on different hardware.

@@ -1,0 +1,45 @@
+# Writing Agent configuration
+# All values can be overridden via CLI flags or environment variables.
+
+# --- Model settings ---
+model:
+  name: "deepseek-chat"          # or "deepseek-reasoner"
+  base_url: "https://api.deepseek.com/v1"
+  temperature: 0.7
+  max_tokens: 8192
+
+# --- Pipeline settings ---
+pipeline:
+  venue: "ICLR"                  # ICLR, NeurIPS, ICML, CVPR, ACL, AAAI, IEEE_JOURNAL, IEEE_CONF
+  max_pages: 9                   # main body page limit (excluding refs/appendix)
+  anonymous: true                # anonymous author block
+  output_dir: "output"           # where the paper/ directory lands
+  language: "english"
+
+# --- Phase 1: Plan ---
+plan:
+  max_sections: 8                # target section count range
+  min_sections: 5
+  num_contribution_bullets: 4    # 2-4 bullets in intro
+
+# --- Phase 2: Write ---
+write:
+  abstract_words_min: 150
+  abstract_words_max: 250
+  related_work_min_pages: 1.0    # minimum full page for related work
+  dblp_verify: true              # online DBLP/CrossRef verification for citations
+
+# --- Phase 3: Review loop ---
+review:
+  max_rounds: 3                  # maximum review->fix->re-review rounds
+  min_score: 6                   # stop when score >= this AND verdict in {ready, almost}
+  acceptable_verdicts: ["ready", "almost"]
+  reviewer_independence: true    # fresh zero-context review each round (anti-inflation)
+  human_checkpoint: false        # pause after each review for user approval
+
+# --- Citation ---
+citation:
+  dblp_endpoint: "https://dblp.org/search/publ/api"
+  dblp_bib_base: "https://dblp.org/rec"
+  crossref_base: "https://doi.org"
+  timeout_seconds: 20

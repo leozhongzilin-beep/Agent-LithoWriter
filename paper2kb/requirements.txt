@@ -1,0 +1,10 @@
+# paper2kb — Paper-to-Literature-KB skill
+# Python 3.9+
+requests>=2.31.0      # DeepSeek LLM API + Crossref metadata
+PyYAML>=6.0           # YAML package input (KB convention)
+PyMuPDF>=1.24         # PDF text extraction (markdown/XML/LaTeX need no extra)
+pytest>=7.0           # tests
+
+# Depends on sibling packages (imported from writing-agent/):
+#   write_agent.llm   -> DeepSeekClient (retry + JSON parsing)
+#   literature_kb.kb  -> canonical package validation (bootstrap via paper2kb._kb)
