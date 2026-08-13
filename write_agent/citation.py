@@ -24,6 +24,7 @@ from typing import Dict, List, Optional, Tuple
 import requests
 
 from .config import Config
+from .kb_bridge import KbProvider, build_kb_provider
 
 
 @dataclass
@@ -65,12 +66,14 @@ def make_key(title: str, year: str, first_author: str = "") -> str:
 class CitationResolver:
     """Verify and resolve citation hints into real BibTeX entries."""
 
-    def __init__(self, config: Config, timeout: int = 20):
+    def __init__(self, config: Config, timeout: int = 20,
+                 kb: Optional[KbProvider] = None):
         self.config = config
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": "writing-agent/0.1 (academic citation verifier)"})
         self._cache: Dict[str, VerifiedEntry] = {}
+        self.kb = kb if kb is not None else build_kb_provider(config)
 
     # ------------------------------------------------------------------
     # DBLP
@@ -205,6 +208,18 @@ class CitationResolver:
         if query in self._cache:
             return self._cache[query]
 
+        if self.kb is not None:
+            entry = self._resolve_from_kb(query)
+            if entry is not None:
+                self._cache[query] = entry
+                return entry
+
+        if not self.config.dblp_verify:
+            self._cache[query] = VerifiedEntry(
+                key="unresolved", bibtex="", title=query, source="UNVERIFIED", verified=False,
+            )
+            return self._cache[query]
+
         # 1. DBLP search by query -- filter by title similarity
         dblp_hits = self.dblp_search(query)
         for hit in dblp_hits:
@@ -266,6 +281,34 @@ class CitationResolver:
             key="unresolved", bibtex="", title=query, source="UNVERIFIED", verified=False,
         )
         return self._cache[query]
+
+    def _resolve_from_kb(self, query: str) -> Optional[VerifiedEntry]:
+        """Resolve a hint against the Literature KB, or None to fall through.
+
+        Acceptance: non-empty BibTeX AND (the hint IS the KB citation_key OR
+        the stored title passes the strict title-match gate). The draft cite
+        key is the stored BibTeX's own internal key — never rewritten.
+        """
+        if self.kb is None:
+            return None
+        for cand in self.kb.resolve_hint(query):
+            if not cand.bibtex:
+                continue
+            if cand.citation_key != query and not self._title_matches(query, cand.title):
+                continue
+            keys = extract_cited_keys(cand.bibtex)
+            if not keys:
+                continue
+            return VerifiedEntry(
+                key=keys[0],
+                bibtex=cand.bibtex,
+                title=cand.title,
+                year=cand.year,
+                venue=cand.venue,
+                source="KB",
+                verified=True,
+            )
+        return None
 
 
 def extract_cited_keys(bib_text: str) -> List[str]:
