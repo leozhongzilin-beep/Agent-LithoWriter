@@ -115,6 +115,15 @@ class Config:
     def dblp_verify(self) -> bool:
         return bool(self.get("write", "dblp_verify", default=True))
 
+    @property
+    def kb_path(self) -> str | None:
+        p = self.get("write", "kb_path", default=None)
+        return p if isinstance(p, str) and p else None
+
+    @property
+    def kb_discovery_per_category(self) -> int:
+        return int(self.get("write", "kb_discovery_per_category", default=5))
+
 
 def load_config(
     yaml_path: Optional[Path] = None,
@@ -188,6 +197,7 @@ def load_config(
         "MIN_SCORE": ("review", "min_score"),
         "OUTPUT_DIR": ("pipeline", "output_dir"),
         "ANONYMOUS": ("pipeline", "anonymous"),
+        "KB_PATH": ("write", "kb_path"),
     }
     for suffix, path in env_map.items():
         val = os.environ.get(f"{env_prefix}{suffix}")
