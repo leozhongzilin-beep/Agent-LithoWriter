@@ -338,6 +338,10 @@ Rules:
 
 CITATION KEYS AVAILABLE: {citation_keys}
 
+KB KNOWN WORK AVAILABLE (from your curated library — cite ONLY keys listed in
+CITATION KEYS AVAILABLE; cards whose key is absent may be described but not cited):
+{kb_cards}
+
 Return ONLY the LaTeX body text.
 """
 

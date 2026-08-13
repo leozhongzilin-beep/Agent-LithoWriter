@@ -64,6 +64,57 @@ def build_section_spec(section: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def related_work_topics(section: Dict[str, Any]) -> List[str]:
+    """Category/topic hints for a section, deduplicated and order-preserving."""
+    out: List[str] = []
+    for h in section.get("citations_hint", []) + section.get("key_points", []):
+        if h and h not in out:
+            out.append(h)
+    return out
+
+
+def format_kb_cards(cards: List[Tuple[Any, str]]) -> str:
+    """Render citable KB cards as a prompt block. cards = [(KbCard, draft_key), ...]."""
+    if not cards:
+        return ""
+    return "\n".join(
+        f"- [{key}] {card.title} ({card.year}) — {card.one_line}"
+        for card, key in cards
+    )
+
+
+def ground_related_work(
+    provider: Any,
+    section: Dict[str, Any],
+    config: Config,
+    resolver: CitationResolver,
+    citation_keys: List[str],
+    resolved_entries: List[Any],
+    seen_hints: set,
+) -> str:
+    """Ground related-work writing in KB cards.
+
+    For each topic, DISCOVERY cards are enqueued as citation hints and
+    resolved through the (KB-first) resolver. Only citable cards (resolved,
+    with BibTeX) are formatted. Mutates citation_keys / resolved_entries in
+    place so the final write_bibliography picks them up.
+    """
+    citable: List[Tuple[Any, str]] = []
+    limit = config.kb_discovery_per_category
+    for topic in related_work_topics(section):
+        for card in provider.discover_cards(topic, max_tokens=800, limit=limit):
+            if card.title in seen_hints:
+                continue
+            seen_hints.add(card.title)
+            entry = resolver.resolve_query(card.title)
+            if entry and entry.verified:
+                if entry.key not in citation_keys:
+                    citation_keys.append(entry.key)
+                    resolved_entries.append(entry)
+                citable.append((card, entry.key))
+    return format_kb_cards(citable)
+
+
 def _write_abstract(
     client: DeepSeekClient,
     config: Config,
@@ -86,6 +137,7 @@ def _write_generic_section(
     section: Dict[str, Any],
     written_so_far: str,
     citation_keys: List[str],
+    kb_cards: str = "",
 ) -> str:
     title = section.get("title", "").lower()
     system = prompts.SYSTEM_WRITER.format(venue=config.venue, language=config.language)
@@ -107,6 +159,16 @@ def _write_generic_section(
             written_so_far=written_so_far,
             target_pages=section.get("target_pages", 1.0),
             num_bullets=config.get("plan", "num_contribution_bullets", default=4),
+        )
+    elif template is prompts.WRITE_SECTION_SPECIFIC_RELATED:
+        keys_str = ", ".join(citation_keys) if citation_keys else "NONE AVAILABLE"
+        user = template.format(
+            paper_context=paper_context,
+            section_spec=section_spec,
+            written_so_far=written_so_far,
+            target_pages=section.get("target_pages", 1.0),
+            citation_keys=keys_str,
+            kb_cards=kb_cards or "NONE",
         )
     else:
         keys_str = ", ".join(citation_keys) if citation_keys else "NONE AVAILABLE"
@@ -142,7 +204,8 @@ def run_write(
     # Pre-resolve citation hints into real bib entries.
     citation_keys: List[str] = []
     resolved_entries = []
-    if config.dblp_verify and citation_resolver is not None:
+    seen_hints: set = set()
+    if citation_resolver is not None:
         hint_list = []
         for s in plan.sections:
             hint_list.extend(s.get("citations_hint", []))
@@ -150,7 +213,6 @@ def run_write(
             if isinstance(v, list):
                 hint_list.extend(v)
         # de-dup hints preserving order
-        seen_hints = set()
         for h in hint_list:
             if h and h not in seen_hints:
                 seen_hints.add(h)
@@ -165,11 +227,23 @@ def run_write(
     for section in plan.sections:
         fname = section["filename"]
         sid = section["id"]
+        kb_cards = ""
+        if (
+            sid != "0"
+            and citation_resolver is not None
+            and citation_resolver.kb is not None
+            and "related" in (section.get("title") or "").lower()
+        ):
+            kb_cards = ground_related_work(
+                citation_resolver.kb, section, config, citation_resolver,
+                citation_keys, resolved_entries, seen_hints,
+            )
         if sid == "0":
             body = _write_abstract(client, config, paper_context)
         else:
             body = _write_generic_section(
-                client, config, paper_context, section, written_so_far, citation_keys
+                client, config, paper_context, section, written_so_far,
+                citation_keys, kb_cards=kb_cards,
             )
         # wrap with section command
         full_tex = tex.wrap_section(fname, body)
