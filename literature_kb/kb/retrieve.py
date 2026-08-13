@@ -11,6 +11,7 @@ full typed objects for direct use.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from . import contract, evidence, formula, ontology, router, search
@@ -24,6 +25,18 @@ _LAYER_NEXT = {
     "L2": ("L3", "escalate to L3 for evidence trace"),
     "L3": ("L4", "escalate to L4 for full-text context"),
 }
+
+
+@dataclass(frozen=True)
+class ResolvedCitation:
+    """A KB-first citation resolution result for an agent-facing hint."""
+    paper_id: str
+    citation_key: str
+    bibtex: str
+    title: str
+    year: str
+    venue: str
+    in_text: str
 
 
 class RetrievalService:
@@ -95,6 +108,44 @@ class RetrievalService:
             evidence_ids=self.store.evidence_ids_for(pid, limit=3),
         )
         return ResultSet(query=query, mode="CITATION", results=[item])
+
+    def resolve_hint(self, hint: str, limit: int = 3) -> list[ResolvedCitation]:
+        """Resolve a citation hint against the KB, KB-first for agents.
+
+        Lookup order: exact citation_key -> DOI -> paper_exists -> L0 search.
+        Returns top-N deduplicated candidates; never raises; [] on miss.
+        """
+        candidates: list[str] = []
+        pid = self.store.find_by_citation_key(hint)
+        if pid:
+            candidates.append(pid)
+        pid = self.store.find_by_doi(hint)
+        if pid and pid not in candidates:
+            candidates.append(pid)
+        if not candidates and self.store.paper_exists(hint):
+            candidates.append(hint)
+        if not candidates:
+            items = search.search_l0(self.store, hint, limit=limit)
+            for it in items:
+                if it.paper_id not in candidates:
+                    candidates.append(it.paper_id)
+        out: list[ResolvedCitation] = []
+        for pid in candidates[:limit]:
+            paper = self.store.get_paper(pid)
+            if not paper:
+                continue
+            cache = paper.get("citation_cache") or {}
+            br = paper.get("bibliographic_record") or {}
+            out.append(ResolvedCitation(
+                paper_id=pid,
+                citation_key=paper.get("citation_key") or "",
+                bibtex=cache.get("bibtex") or "",
+                title=paper.get("title") or "",
+                year=str(paper.get("year") or ""),
+                venue=br.get("container_title") or paper.get("venue") or "",
+                in_text=resolve_citation(self.store, pid)["in_text_citation"],
+            ))
+        return out
 
     def _retrieve_formulas(self, query: str, plan: router.RoutePlan) -> ResultSet:
         hits = formula.search_formulas(self.store, query, limit=10)
