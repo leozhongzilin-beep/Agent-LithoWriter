@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from . import contract, evidence, formula, ontology, router, search
+from . import contract, evidence, formula, fts, ontology, router, search
 from .citation import resolve_citation
 from .contract import ResultItem, ResultSet
 from .store import KBStore
@@ -25,6 +25,12 @@ _LAYER_NEXT = {
     "L2": ("L3", "escalate to L3 for evidence trace"),
     "L3": ("L4", "escalate to L4 for full-text context"),
 }
+
+
+def _head_name(s: str) -> str:
+    """Leading colon-separated segment, normalized ('' when no ':')."""
+    seg = (s or "").split(":", 1)[0].strip()
+    return "".join(c for c in seg.lower() if c.isalnum())
 
 
 @dataclass(frozen=True)
@@ -114,6 +120,12 @@ class RetrievalService:
 
         Lookup order: exact citation_key -> DOI -> paper_exists -> L0 search.
         Returns top-N deduplicated candidates; never raises; [] on miss.
+
+        Citation hints from the planning phase are often *rewritten* titles
+        (the subtitle paraphrased, the acronym expanded), which the L0 AND-join
+        FTS misses entirely. So when the exact ladder misses we surface extra
+        candidates, highest-confidence first: leading-name matches (distinctive
+        "GAN-OPC:" acronym), then precision AND search, then OR-join recall.
         """
         candidates: list[str] = []
         pid = self.store.find_by_citation_key(hint)
@@ -125,10 +137,21 @@ class RetrievalService:
         if not candidates and self.store.paper_exists(hint):
             candidates.append(hint)
         if not candidates:
+            head = _head_name(hint)
+            if head:
+                for pid_, title in self.store.title_index():
+                    if _head_name(title) == head and pid_ not in candidates:
+                        candidates.append(pid_)
             items = search.search_l0(self.store, hint, limit=limit)
             for it in items:
                 if it.paper_id not in candidates:
                     candidates.append(it.paper_id)
+            or_expr = fts.make_match(hint, join="OR")
+            if or_expr:
+                for h in fts.query(self.store.conn, "fts_papers", "",
+                                   limit=limit * 3, match_expr=or_expr):
+                    if h["paper_id"] not in candidates:
+                        candidates.append(h["paper_id"])
         out: list[ResolvedCitation] = []
         for pid in candidates[:limit]:
             paper = self.store.get_paper(pid)

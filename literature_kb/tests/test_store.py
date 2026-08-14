@@ -136,3 +136,31 @@ def test_dangling_sources(tmp_kb):
     )
     tmp_kb.conn.commit()
     assert tmp_kb.dangling_sources() == [pid]
+
+
+# ---------------------------------------------------------------------------
+# citation metadata backfill
+# ---------------------------------------------------------------------------
+
+def test_update_citation_metadata_backfills_doi_and_bibtex(tmp_kb):
+    pid = "ILT_2024_001"
+    _insert_minimal_paper(tmp_kb, pid)
+    bib = "@article{jiang2022neural,\n  title = {Neural-ILT},\n  year = {2022}\n}"
+    tmp_kb.update_citation_metadata(pid, "10.1109/TCAD.2021.3061494", bib)
+
+    p = tmp_kb.get_paper(pid)
+    assert p["doi"] == "10.1109/TCAD.2021.3061494"
+    assert p["bibtex_key"] == "jiang2022neural"
+    assert p["citation_cache"]["bibtex"] == bib
+    # identity resolution now sees the backfilled DOI
+    assert tmp_kb.find_by_doi("10.1109/TCAD.2021.3061494") == pid
+
+
+def test_update_citation_metadata_is_idempotent(tmp_kb):
+    pid = "ILT_2024_001"
+    _insert_minimal_paper(tmp_kb, pid)
+    bib = "@article{jiang2022neural,\n  title = {Neural-ILT},\n  year = {2022}\n}"
+    tmp_kb.update_citation_metadata(pid, "10.1109/TCAD.2021.3061494", bib)
+    tmp_kb.update_citation_metadata(pid, "10.1109/TCAD.2021.3061494", bib)
+    assert tmp_kb.get_paper(pid)["bibtex_key"] == "jiang2022neural"
+    assert tmp_kb.get_paper(pid)["citation_cache"]["bibtex"] == bib

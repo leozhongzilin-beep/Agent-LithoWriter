@@ -16,9 +16,11 @@ importtool.import_package).
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sqlite3
 from collections.abc import Callable, Iterable
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -252,6 +254,16 @@ class KBStore:
             "SELECT paper_id FROM papers ORDER BY paper_id LIMIT ?", (int(limit),)
         ).fetchall()]
 
+    def title_index(self) -> list[tuple[str, str]]:
+        """(paper_id, title) pairs for every paper, newest first.
+
+        Used for recall-oriented title matching (citation resolution against
+        rewritten titles) where the FTS AND-join is too strict.
+        """
+        return [(r["paper_id"], r["title"] or "") for r in self.conn.execute(
+            "SELECT paper_id, title FROM papers ORDER BY year DESC"
+        ).fetchall()]
+
     def like_papers(self, query: str, limit: int = 50) -> list[str]:
         """LIKE fallback over title/description/keywords when FTS is empty."""
         q = f"%{query}%"
@@ -350,6 +362,25 @@ class KBStore:
                     "bibliographic_record", "citation_cache"):
             d[col] = _jload(d.get(col))
         return d
+
+    def update_citation_metadata(self, paper_id: str, doi: str, bibtex: str) -> None:
+        """Backfill a paper's citation identity (doi + bibtex) in place.
+
+        Used to repair papers imported with a missing/wrong DOI, which leaves
+        ``citation_cache`` empty and therefore makes the paper uncitable.
+        The BibTeX internal key is derived from ``bibtex`` (never guessed).
+        """
+        assert self.conn is not None
+        m = re.search(r"@\w+\{\s*([^,]+),", bibtex)
+        bibtex_key = m.group(1).strip() if m else None
+        cache = json.dumps({"bibtex": bibtex}, ensure_ascii=False)
+        self.conn.execute(
+            "UPDATE papers SET doi = ?, bibtex_key = ?, citation_cache = ?, "
+            "updated_at = ? WHERE paper_id = ?",
+            (doi, bibtex_key, cache,
+             datetime.now(timezone.utc).isoformat(timespec="seconds"), paper_id),
+        )
+        self.conn.commit()
 
     def get_source_hash(self, paper_id: str) -> str | None:
         assert self.conn is not None

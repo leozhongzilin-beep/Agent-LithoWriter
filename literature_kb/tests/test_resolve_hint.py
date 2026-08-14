@@ -50,3 +50,23 @@ def test_resolve_hint_missing_bibtex_is_empty_string(tmp_kb, make_package):
 def test_resolve_hint_empty_kb_returns_empty_list(tmp_kb):
     svc = RetrievalService(tmp_kb)
     assert svc.resolve_hint("anything") == []
+
+
+def test_resolve_hint_recalls_by_leading_name(tmp_kb, make_package):
+    """A rewritten subtitle keeps the acronym head; head recall surfaces it."""
+    _seed(tmp_kb, make_package,
+          title="GAN-OPC: Mask Optimization with Lithography-guided GAN")
+    svc = RetrievalService(tmp_kb)
+    hits = svc.resolve_hint(
+        "GAN-OPC: Generative Adversarial Networks for Optical Proximity Correction"
+    )
+    assert hits and "GAN-OPC" in hits[0].title
+
+
+def test_resolve_hint_recalls_via_or_join(tmp_kb, make_package):
+    """Paraphrased hint shares only distinctive terms; OR-join recall finds it."""
+    _seed(tmp_kb, make_package,
+          title="ICCAD-2013 CAD contest in mask optimization and benchmark suite")
+    svc = RetrievalService(tmp_kb)
+    hits = svc.resolve_hint("ICCAD 2013 benchmark for lithography")
+    assert hits and "ICCAD" in hits[0].title

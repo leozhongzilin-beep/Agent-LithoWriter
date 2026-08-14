@@ -169,6 +169,11 @@ class CitationResolver:
     # ------------------------------------------------------------------
     # Title matching
     # ------------------------------------------------------------------
+    _STOPWORDS = {
+        "for", "and", "the", "with", "via", "from", "using", "into",
+        "toward", "towards", "based",
+    }
+
     @staticmethod
     def _strip_citation_suffix(query: str) -> str:
         """Remove an author-year suffix so the bare title can be searched.
@@ -178,28 +183,80 @@ class CitationResolver:
         q_clean = re.sub(r"\(.*\)\s*$", "", query).strip()  # "(Vaswani, 2017)"
         return re.sub(r",?\s*\d{4}\s*$", "", q_clean).strip()  # ", 2017"
 
+    @staticmethod
+    def _sig_tokens(s: str) -> set:
+        """Normalize to significant word tokens.
+
+        Hyphenated compounds ("GAN-OPC") stay atomic AND are also split into
+        their parts ("gan", "opc") so matching is robust to whether a source
+        writes the acronym as one token or as separate words.
+        """
+        s = re.sub(r"[^a-z0-9\- ]", " ", s.lower())
+        out = set()
+        for w in s.split():
+            if len(w) <= 2 or w in CitationResolver._STOPWORDS:
+                continue
+            out.add(w)
+            out.update(p for p in w.split("-") if len(p) > 2)
+        return out
+
+    @staticmethod
+    def _head(s: str) -> str:
+        """Leading colon-separated segment, normalized ('' when no ':').
+
+        "GAN-OPC: Mask Optimization ..." -> "ganopc"; a colon-less string
+        yields its fully-normalized self, which rarely equals another title.
+        """
+        seg = s.split(":", 1)[0].strip()
+        return re.sub(r"[^a-z0-9]", "", seg.lower())
+
+    @staticmethod
+    def _distinctive(tok: str) -> bool:
+        """True for high-identity tokens: acronyms, years, hyphenated names.
+
+        A match built only from generic words ("inverse lithography
+        technology") must not be enough to attach a specific paper.
+        """
+        return "-" in tok or tok.isdigit() or 2 <= len(tok) <= 3
+
     @classmethod
     def _title_matches(cls, query: str, title: str) -> bool:
-        """Token-overlap heuristic: does the title plausibly match the query?
+        """Fuzzy title match, tolerant of LLM-rewritten subtitles.
 
-        Queries are expected to be exact-ish paper titles (possibly with a
-        "(First Author et al., YEAR)" suffix, which is stripped). Returns
-        True when a strong overlap exists.
+        The planning phase often rewrites a paper's subtitle (e.g. expands an
+        acronym) or rephrases it, so a strict token-subset gate rejects titles
+        that are clearly the same paper. Four progressively weaker signals are
+        checked; partial-subset and coverage matches require at least one
+        *distinctive* shared token so generic phrases cannot cross-match
+        unrelated papers:
+
+        1. Distinctive leading name ("GAN-OPC:", "Neural-ILT:") is decisive.
+        2. Exact token-set equality.
+        3. Containment, gated on a distinctive shared token.
+        4. Strong query coverage (>= 60%), gated on a distinctive shared token.
+        5. Strong symmetric overlap (Jaccard >= 0.5).
         """
         q_clean = cls._strip_citation_suffix(query)
+        q = cls._sig_tokens(q_clean)
+        t = cls._sig_tokens(title)
+        if not q or not t:
+            return False
 
-        def tokens(s: str):
-            return {w for w in re.sub(r"[^a-z0-9 ]", " ", s.lower()).split() if len(w) > 2}
-
-        q = tokens(q_clean)
-        t = tokens(title)
-        if not q:
+        q_head, t_head = cls._head(q_clean), cls._head(title)
+        if q_head and t_head and len(q_head) >= 3 and q_head == t_head:
             return True
-        if len(q) <= 3:
-            return q.issubset(t)
-        # strict: candidate title must contain every significant query token
-        # (token order is ignored, but all tokens must be present)
-        return q.issubset(t)
+
+        ov = q & t
+        if not ov:
+            return False
+        distinctive = any(cls._distinctive(x) for x in ov)
+        if q == t:
+            return True
+        if q < t or t < q:
+            return distinctive
+        if len(ov) >= 2 and len(ov) / len(q) >= 0.6:
+            return distinctive
+        return len(ov) / len(q | t) >= 0.5
 
     # ------------------------------------------------------------------
     # Main entry points

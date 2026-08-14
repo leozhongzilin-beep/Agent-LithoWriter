@@ -87,3 +87,34 @@ def test_kb_miss_falls_through_to_unverified():
     r = _resolver(_FakeKb([]))
     e = r.resolve_query("Some Totally Unknown Paper Title")
     assert e is not None and e.source == "UNVERIFIED"
+
+
+def test_rewritten_title_with_matching_acronym_resolves():
+    # The plan LLM expanded "GAN-OPC" differently but kept the acronym head.
+    hit = _FakeKbResolved("Yang2020GANOPC", _KB_BIB,
+                          "GAN-OPC: Mask Optimization with Lithography-guided GAN",
+                          "2020", "TCAD", "(Yang et al., 2020)")
+    r = _resolver(_FakeKb([hit]))
+    e = r.resolve_query("GAN-OPC: Generative Adversarial Networks for Optical Proximity Correction")
+    assert e is not None and e.verified and e.source == "KB"
+
+
+def test_rewritten_title_with_distinctive_year_resolves():
+    # ICCAD benchmark: the year "2013" + shared terms bridge the paraphrase.
+    hit = _FakeKbResolved("Banerjee2013ICCAD2013", _KB_BIB,
+                          "ICCAD-2013 CAD contest in mask optimization and benchmark suite",
+                          "2013", "ICCAD", "(Banerjee et al., 2013)")
+    r = _resolver(_FakeKb([hit]))
+    e = r.resolve_query("ICCAD 2013 benchmark for lithography")
+    assert e is not None and e.verified and e.source == "KB"
+
+
+def test_generic_phrase_is_not_cross_matched():
+    # A generic 3-word phrase that is a proper subset of a title must NOT
+    # attach that paper (it refers to a different, unindexed paper).
+    hit = _FakeKbResolved("Huang2025BlockInverse", _KB_BIB,
+                          "Block-based inverse lithography technology with adaptive level-set",
+                          "2025", "TCAD", "(Huang et al., 2025)")
+    r = _resolver(_FakeKb([hit]))
+    e = r.resolve_query("Inverse Lithography Technology")
+    assert e is not None and e.source == "UNVERIFIED"

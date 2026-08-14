@@ -207,6 +207,34 @@ def extract_citation_keys(tex_text: str) -> List[str]:
     return sorted(keys)
 
 
+_CITE_CMD_RE = re.compile(r"\\cite[a-zA-Z]*\{([^}]*)\}")
+
+
+def sanitize_citations(body: str, allowed_keys: set[str]) -> tuple[str, list[str]]:
+    """Rewrite \\cite/\\citep/\\citet commands so only allowed keys remain.
+
+    Deterministic enforcement of the "only cite keys we provided" invariant
+    (root cause B). For each citation command, keys not in ``allowed_keys``
+    are dropped; a command left with no allowed key is removed entirely.
+    Returns (rewritten body, dropped keys in encounter order).
+    """
+    dropped: list[str] = []
+
+    def _replace(m: re.Match[str]) -> str:
+        cmd = m.group(0)
+        keys = [k.strip() for k in m.group(1).split(",") if k.strip()]
+        kept = [k for k in keys if k in allowed_keys]
+        removed = [k for k in keys if k not in allowed_keys]
+        if removed:
+            dropped.extend(removed)
+        if not kept:
+            return ""
+        prefix = cmd[: cmd.index("{")]
+        return f"{prefix}{{{','.join(kept)}}}"
+
+    return _CITE_CMD_RE.sub(_replace, body), dropped
+
+
 def ensure_labels_unique(tex_text: str) -> List[str]:
     """Return list of duplicate \\label values (blocking in final checks)."""
     labels = re.findall(r"\\label\{([^}]*)\}", tex_text)

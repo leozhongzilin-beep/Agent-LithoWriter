@@ -223,6 +223,7 @@ def run_write(
 
     written_files: List[str] = []
     written_so_far = ""
+    warnings: list[str] = []
 
     for section in plan.sections:
         fname = section["filename"]
@@ -244,6 +245,15 @@ def run_write(
             body = _write_generic_section(
                 client, config, paper_context, section, written_so_far,
                 citation_keys, kb_cards=kb_cards,
+            )
+        # Deterministic enforcement: drop any cite key the resolver did not
+        # provide (root cause B). The LLM prompt asks for this, but the LLM
+        # still fabricates keys, so we strip them here.
+        body, dropped_keys = tex.sanitize_citations(body, set(citation_keys))
+        if dropped_keys:
+            warnings.append(
+                f"Section {sid}: dropped fabricated citation keys "
+                f"{', '.join(dropped_keys)}"
             )
         # wrap with section command
         full_tex = tex.wrap_section(fname, body)
@@ -269,7 +279,6 @@ def run_write(
         from ..citation import write_bibliography
         write_bibliography(resolved_entries, paper_dir / "references.bib")
 
-    warnings = []
     if citation_resolver is not None:
         unresolved = [e for e in citation_resolver._cache.values() if not e.verified]
         if unresolved:
