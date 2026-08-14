@@ -2,7 +2,7 @@
 
 A self-contained Python program that turns a research topic or narrative
 into a structured LaTeX paper, using a built-in review loop for iterative
-improvement. Inspired by the ARIS (Auto Research In Sleep) skill design.
+improvement.
 
 Pipeline:
     Phase 1  plan    - parse input -> claims-evidence matrix -> PAPER_PLAN.md

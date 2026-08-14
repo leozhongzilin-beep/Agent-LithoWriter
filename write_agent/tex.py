@@ -1,6 +1,6 @@
 """LaTeX utilities: templates, project structure, cleanup.
 
-Follows the ARIS paper-write template conventions:
+Follows paper-write template conventions:
     - venue-specific documentclass
     - math_commands.tex for shared notation
     - references.bib (filtered to cited entries only)

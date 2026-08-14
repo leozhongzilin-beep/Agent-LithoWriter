@@ -1,6 +1,6 @@
 """Phase 2: Writing -- generate LaTeX section by section.
 
-Follows the ARIS paper-write methodology:
+Follows a paper-write methodology:
     - abstract: five-sentence formula
     - intro: hook -> gap -> approach -> bullets -> preview
     - related work: >= 1 page, organized by category

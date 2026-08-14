@@ -1,9 +1,9 @@
 """Phase 3: Review loop -- autonomous review -> fix -> re-review.
 
-Design principles borrowed from ARIS's auto-review-loop and
-auto-paper-improvement-loop:
+Design principles:
     - reviewer independence: every round uses a fresh zero-context prompt
-      (REVIEWER_BIAS_GUARD). The reviewer never sees "what we changed" --
+      (zero-context reviewer independence). The reviewer never sees
+      "what we changed" --
       only the current paper text. This prevents score inflation.
     - stop condition: score >= min_score AND verdict in acceptable_verdicts
     - state persistence: REVIEW_STATE.json allows crash recovery

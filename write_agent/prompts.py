@@ -1,7 +1,6 @@
 """Prompt templates for the writing agent.
 
-These prompts encode the writing methodology from ARIS's
-shared-references/writing-principles.md:
+These prompts encode a paper-writing methodology:
     - five-sentence abstract formula (Farquhar)
     - introduction structure (hook -> gap -> approach -> bullets -> preview)
     - claims-evidence matrix

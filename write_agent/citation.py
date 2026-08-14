@@ -1,6 +1,6 @@
 """Citation verification for the writing agent.
 
-Prevents hallucinated BibTeX. Strategy (from ARIS paper-write):
+Prevents hallucinated BibTeX. Citation verification strategy:
     Step A: DBLP search -> extract DBLP key -> fetch real .bib
     Step B: CrossRef via DOI (fallback)
     Step C: mark [VERIFY] (last resort, never fabricate)
