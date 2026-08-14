@@ -16,7 +16,9 @@ venv/
 output/
 
 # Literature KB runtime data (created by `kb init`; not source)
-literature_kb/data/
+literature_kb/data/*
+# ...but version the canonical knowledge-base snapshot
+!literature_kb/data/kb.db
 
 # OS
 .DS_Store
