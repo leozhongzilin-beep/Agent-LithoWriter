@@ -170,17 +170,23 @@ class CitationResolver:
     # Title matching
     # ------------------------------------------------------------------
     @staticmethod
-    def _title_matches(query: str, title: str) -> bool:
+    def _strip_citation_suffix(query: str) -> str:
+        """Remove an author-year suffix so the bare title can be searched.
+
+        Handles "Title (First Author et al., YEAR)" and trailing ", YEAR".
+        """
+        q_clean = re.sub(r"\(.*\)\s*$", "", query).strip()  # "(Vaswani, 2017)"
+        return re.sub(r",?\s*\d{4}\s*$", "", q_clean).strip()  # ", 2017"
+
+    @classmethod
+    def _title_matches(cls, query: str, title: str) -> bool:
         """Token-overlap heuristic: does the title plausibly match the query?
 
         Queries are expected to be exact-ish paper titles (possibly with a
         "(First Author et al., YEAR)" suffix, which is stripped). Returns
         True when a strong overlap exists.
         """
-        # strip author-year suffix: "Attention Is All You Need (Vaswani, 2017)"
-        q_clean = re.sub(r"\(.*\)\s*$", "", query).strip()
-        # also strip year like ", 2017" at end
-        q_clean = re.sub(r",?\s*\d{4}\s*$", "", q_clean).strip()
+        q_clean = cls._strip_citation_suffix(query)
 
         def tokens(s: str):
             return {w for w in re.sub(r"[^a-z0-9 ]", " ", s.lower()).split() if len(w) > 2}
@@ -291,7 +297,8 @@ class CitationResolver:
         """
         if self.kb is None:
             return None
-        for cand in self.kb.resolve_hint(query):
+        clean = self._strip_citation_suffix(query)  # KB title search needs the bare title
+        for cand in self.kb.resolve_hint(clean):
             if not cand.bibtex:
                 continue
             if cand.citation_key != query and not self._title_matches(query, cand.title):
