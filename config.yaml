@@ -37,6 +37,15 @@ review:
   reviewer_independence: true    # fresh zero-context review each round (anti-inflation)
   human_checkpoint: false        # pause after each review for user approval
 
+# --- Automatic experiment loop ---
+experiments:
+  auto: false                    # opt in because this can launch long GPU jobs
+  loop_root: null                # e.g. D:/path/to/model-optimize-loop
+  project_profile: null          # e.g. ../model-optimize-loop/projects/lpd_ilt.yaml
+  workspace_root: null           # member/project experiment workspace
+  lithobench_root: null          # deprecated alias for workspace_root
+  python: null                   # e.g. D:/ANACONDA/envs/lithobench/python.exe
+
 # --- Citation ---
 citation:
   dblp_endpoint: "https://dblp.org/search/publ/api"

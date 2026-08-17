@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional
 
 from .. import prompts, tex
 from ..config import Config
+from ..experiment_bridge import ExperimentExchange, request_from_review_weakness
 from ..llm import DeepSeekClient, LLMError
 
 
@@ -32,7 +33,7 @@ class ReviewRound:
     verdict: str
     summary: str
     strengths: List[str] = field(default_factory=list)
-    weaknesses: List[Dict[str, str]] = field(default_factory=list)
+    weaknesses: List[Dict[str, Any]] = field(default_factory=list)
     raw_response: str = ""
 
 
@@ -43,6 +44,7 @@ class ReviewResult:
     final_verdict: str = "not ready"
     stopped_reason: str = ""
     round_count: int = 0
+    experiment_requests: List[Dict[str, Any]] = field(default_factory=list)
 
 
 def _now_iso() -> str:
@@ -85,18 +87,27 @@ def _parse_review_json(text: str) -> Dict[str, Any]:
     except (TypeError, ValueError):
         obj["score"] = 0.0
     verdict = str(obj.get("verdict", "not ready")).strip().lower()
-    if "ready" in verdict:
-        obj["verdict"] = "ready"
+    if "not ready" in verdict:
+        obj["verdict"] = "not ready"
     elif "almost" in verdict or "not quite" in verdict:
         obj["verdict"] = "almost"
+    elif "ready" in verdict:
+        obj["verdict"] = "ready"
     else:
         obj["verdict"] = "not ready"
     weaknesses = obj.get("weaknesses", [])
     if isinstance(weaknesses, list) and weaknesses and isinstance(weaknesses[0], str):
         obj["weaknesses"] = [
-            {"severity": "MAJOR", "issue": w, "fix": "", "location": ""}
+            {"severity": "MAJOR", "issue": w, "fix": "", "location": "", "action": "TEXT_FIX"}
             for w in weaknesses
         ]
+    for weakness in obj.get("weaknesses", []):
+        if not isinstance(weakness, dict):
+            continue
+        action = str(weakness.get("action", "TEXT_FIX")).upper()
+        if action not in {"TEXT_FIX", "EXPERIMENT_REQUIRED", "HUMAN_REVIEW"}:
+            action = "TEXT_FIX"
+        weakness["action"] = action
     return obj
 
 
@@ -196,6 +207,7 @@ def run_review_loop(
     config: Config,
     paper_dir: Path,
     max_rounds: Optional[int] = None,
+    experiment_exchange: Optional[ExperimentExchange] = None,
 ) -> ReviewResult:
     """Run the autonomous review -> fix -> re-review loop."""
     max_rounds = max_rounds or config.review_max_rounds
@@ -209,7 +221,7 @@ def run_review_loop(
     saved = state_file.load()
     start_round = 1
     rounds: List[ReviewRound] = []
-    if saved and saved.get("status") == "in_progress":
+    if saved and saved.get("status") in {"in_progress", "waiting_for_experiment"}:
         saved_ts = saved.get("timestamp", "")
         try:
             saved_dt = datetime.fromisoformat(saved_ts)
@@ -268,7 +280,51 @@ def run_review_loop(
         if human_checkpoint:
             _human_checkpoint(round_rec)
 
-        # 5. Stop condition
+        # 5. Pause for evidence that cannot be produced by text editing.
+        experiment_weaknesses = [
+            weakness for weakness in round_rec.weaknesses
+            if str(weakness.get("action", "TEXT_FIX")).upper() == "EXPERIMENT_REQUIRED"
+        ]
+        if experiment_weaknesses and experiment_exchange is not None:
+            requests = [
+                experiment_exchange.append_request(
+                    request_from_review_weakness(weakness, round_num=rnd)
+                )
+                for weakness in experiment_weaknesses
+            ]
+            result.rounds = rounds
+            result.final_score = round_rec.score
+            result.final_verdict = round_rec.verdict
+            result.stopped_reason = "experiment_required"
+            result.round_count = len(rounds)
+            result.experiment_requests = requests
+            state_file.save({
+                "status": "waiting_for_experiment",
+                "round": rnd,
+                "request_ids": [request["request_id"] for request in requests],
+                "timestamp": _now_iso(),
+            })
+            print(f"[review] Paused for {len(requests)} experiment request(s).")
+            return result
+
+        human_weaknesses = [
+            weakness for weakness in round_rec.weaknesses
+            if str(weakness.get("action", "TEXT_FIX")).upper() == "HUMAN_REVIEW"
+        ]
+        if human_weaknesses:
+            result.rounds = rounds
+            result.final_score = round_rec.score
+            result.final_verdict = round_rec.verdict
+            result.stopped_reason = "human_review_required"
+            result.round_count = len(rounds)
+            state_file.save({
+                "status": "human_review_required",
+                "round": rnd,
+                "timestamp": _now_iso(),
+            })
+            return result
+
+        # 6. Stop condition
         if round_rec.score >= min_score and round_rec.verdict in acceptable:
             result.rounds = rounds
             result.final_score = round_rec.score
@@ -279,10 +335,14 @@ def run_review_loop(
             print(f"[review] Positive assessment reached: {round_rec.score}/10 ({round_rec.verdict})")
             return result
 
-        # 6. Apply fixes (only for CRITICAL/MAJOR, skip MINOR unless cheap)
-        critical = [w for w in round_rec.weaknesses if w.get("severity", "").upper() == "CRITICAL"]
-        major = [w for w in round_rec.weaknesses if w.get("severity", "").upper() == "MAJOR"]
-        minor = [w for w in round_rec.weaknesses if w.get("severity", "").upper() == "MINOR"]
+        # 7. Apply text fixes (only for CRITICAL/MAJOR, skip MINOR unless cheap)
+        text_weaknesses = [
+            weakness for weakness in round_rec.weaknesses
+            if str(weakness.get("action", "TEXT_FIX")).upper() == "TEXT_FIX"
+        ]
+        critical = [w for w in text_weaknesses if w.get("severity", "").upper() == "CRITICAL"]
+        major = [w for w in text_weaknesses if w.get("severity", "").upper() == "MAJOR"]
+        minor = [w for w in text_weaknesses if w.get("severity", "").upper() == "MINOR"]
 
         if not critical and not major:
             print(f"[review] No CRITICAL/MAJOR issues; only {len(minor)} minor. Moving on.")

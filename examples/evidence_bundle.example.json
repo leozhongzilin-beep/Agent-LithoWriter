@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-14T00:00:00+00:00",
+  "goal_id": "GOAL-ILT-001",
+  "score": {
+    "name": "normalized_score",
+    "direction": "minimize",
+    "formula": "project-defined",
+    "target": null
+  },
+  "baseline": {
+    "experiment_id": "BASELINE-RUN",
+    "metrics": {
+      "normalized_score": 1.0,
+      "L2": 48191.4,
+      "PVB": 42178.0,
+      "EPE": 11.88
+    }
+  },
+  "best_run": {
+    "experiment_id": "BEST-RUN",
+    "metrics": {
+      "normalized_score": 0.84,
+      "L2": 37807.9,
+      "PVB": 37686.0,
+      "EPE": 5.5
+    },
+    "seed": 2028,
+    "single_seed": true
+  },
+  "experiments": [],
+  "aggregate_results": {},
+  "claims_supported": [],
+  "known_gaps": [
+    {
+      "question": "Does the improvement hold across five paired seeds?"
+    }
+  ],
+  "artifacts": [],
+  "reports": [],
+  "provenance": {
+    "note": "Illustrative values only; replace with registry-exported evidence before writing."
+  }
+}

@@ -438,13 +438,22 @@ self-containedness, notation consistency, missing references, overclaiming,
 and whether a skim reader could recover the main claim from title + abstract +
 introduction + figure descriptions.
 
+For every weakness, classify the required action:
+- TEXT_FIX: the current evidence is sufficient and the paper text can be fixed.
+- EXPERIMENT_REQUIRED: resolving the weakness requires a new measurement,
+  ablation, confirmation run, robustness test, or other unavailable evidence.
+- HUMAN_REVIEW: the scientific direction or experiment definition is ambiguous.
+Never label missing experimental evidence as TEXT_FIX merely to soften a core
+claim. For EXPERIMENT_REQUIRED, include a bounded experiment_request. Do not
+write shell commands or bypass experiment approval/resource policies.
+
 Return ONLY a JSON object:
 {{
   "score": 6.0,
   "summary": "...",
   "strengths": ["..."],
   "weaknesses": [
-    {{"severity": "CRITICAL|MAJOR|MINOR", "issue": "...", "fix": "specific actionable fix", "location": "section or line hint"}}
+    {{"severity": "CRITICAL|MAJOR|MINOR", "issue": "...", "fix": "specific actionable fix", "location": "section or line hint", "action": "TEXT_FIX|EXPERIMENT_REQUIRED|HUMAN_REVIEW", "experiment_request": {{"type": "ABLATION|CONFIRMATION_RUN|REPRODUCIBILITY_CHECK", "question": "...", "hypothesis": "...", "baseline_run_id": "exact existing run id to clone when known", "variables": {{"config.path": "value"}}, "controlled_variables": ["..."], "required_metrics": ["normalized_score", "official_l2", "official_pvb", "official_epe"], "seeds": [2026, 2027], "budget_name": "promotion", "estimated_gpu_hours": 0.0, "success_condition": "...", "requested_artifacts": ["result.json"]}}}}
   ],
   "verdict": "ready|almost|not ready"
 }}
@@ -466,6 +475,10 @@ Same format and FORMAT RULES TO AUDIT as Round 1:
    (include format-rule violations from the checklist below)
 5. **Verdict**: "ready", "almost", or "not ready"
 
+Classify each weakness with `action`: TEXT_FIX, EXPERIMENT_REQUIRED, or
+HUMAN_REVIEW. EXPERIMENT_REQUIRED must include the same bounded
+`experiment_request` object used in Round 1. Never invent missing results.
+
 FORMAT RULES TO AUDIT (same as Round 1):
 - hyperref = \\usepackage[draft=false,hidelinks]{{hyperref}} (MAJOR)
 - abstract = 7-sentence flow, not starting with "We propose..." (MAJOR)
@@ -484,7 +497,7 @@ Return ONLY a JSON object with the same schema:
   "summary": "...",
   "strengths": ["..."],
   "weaknesses": [
-    {{"severity": "CRITICAL|MAJOR|MINOR", "issue": "...", "fix": "...", "location": "..."}}
+    {{"severity": "CRITICAL|MAJOR|MINOR", "issue": "...", "fix": "...", "location": "...", "action": "TEXT_FIX|EXPERIMENT_REQUIRED|HUMAN_REVIEW", "experiment_request": {{}}}}
   ],
   "verdict": "ready|almost|not ready"
 }}
@@ -533,6 +546,77 @@ Return ONLY the complete revised LaTeX for ALL sections, each wrapped in:
 
 Use exactly the filenames provided in the current paper. Do not drop or merge
 sections. If a section is unchanged, still include it in full.
+"""
+
+
+UPDATE_FROM_EVIDENCE = """Update the current paper using newly completed,
+traceable experiment evidence.
+
+EXPERIMENT EVIDENCE:
+{evidence_context}
+
+CURRENT PAPER:
+{paper_text}
+
+Instructions:
+- Process every item under NEW REQUEST-RESPONSE HANDOFFS before consulting
+  older bundle evidence.  Use the request's question, hypothesis, and origin
+  to identify the exact claim and sections being updated.  Do not relabel the
+  requested comparison as a different ablation.  For each response,
+  explicitly incorporate its primary aggregate metric, comparison reference,
+  score direction, and claim_supported outcome.
+- Follow mandatory_interpretation exactly.  In particular, when score direction
+  is minimize, a larger target mean is worse; never call it an improvement.
+- Treat exact metrics in the structured evidence as authoritative.
+- Never infer or invent an unreported value, seed, confidence interval, or
+  significance claim.
+- Update only sections materially affected by the new evidence. Usually this
+  includes Experiments and may include Abstract, Introduction, and Conclusion
+  when their quantitative claims change.
+- Preserve unrelated wording, citation keys, labels, and section structure.
+- Connect every new quantitative statement to its experiment/run provenance.
+- If a completed experiment failed or falsified the claim, report that result
+  honestly and revise the claim rather than hiding it.  When
+  claim_supported=false, retract or qualify the old claim everywhere it
+  appears; do not return that claim unchanged.
+- Mention limitations such as single-seed evidence or incomplete artifacts.
+
+Return ONLY each changed section, using its existing filename:
+===== BEGIN FILE: <filename> =====
+<complete revised LaTeX for that section>
+===== END FILE: <filename> =====
+"""
+
+
+EVIDENCE_UPDATE_SEMANTIC_RETRY = """
+
+SEMANTIC RETRY: The previous response returned parseable files but did not
+demonstrably incorporate the newly completed experiment.  This is a hard
+failure, not an optional wording suggestion.
+
+Required evidence anchors and outcomes:
+{requirements}
+
+Revise the affected sections again.  Include the primary aggregate value and
+its comparison value at sensible precision.  If claim_supported=false,
+explicitly say that the predeclared evidence threshold was not met and retract
+or qualify the old claim.  Return only complete revised LaTeX file blocks using
+existing filenames and the required BEGIN/END markers.
+"""
+
+
+EVIDENCE_UPDATE_FORMAT_RETRY = """
+
+FORMAT RETRY: Your previous response did not contain any parseable existing
+section file. Perform the evidence update again and return only complete
+revised LaTeX file blocks. Use only these exact filenames:
+{filenames}
+
+Every block must use this exact format, including the filename on both marker
+lines. Do not add prose before or after the blocks:
+===== BEGIN FILE: <exact-existing-filename> =====
+<complete revised LaTeX for that section>
+===== END FILE: <exact-existing-filename> =====
 """
 
 

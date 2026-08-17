@@ -10,6 +10,7 @@ Precedence (highest wins):
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -124,6 +125,38 @@ class Config:
     def kb_discovery_per_category(self) -> int:
         return int(self.get("write", "kb_discovery_per_category", default=5))
 
+    @property
+    def auto_experiments(self) -> bool:
+        return bool(self.get("experiments", "auto", default=False))
+
+    @property
+    def auto_loop_root(self) -> Path | None:
+        value = self.get("experiments", "loop_root", default=None)
+        return Path(value) if isinstance(value, str) and value else None
+
+    @property
+    def auto_project_profile(self) -> Path | None:
+        value = self.get("experiments", "project_profile", default=None)
+        return Path(value) if isinstance(value, str) and value else None
+
+    @property
+    def auto_workspace_root(self) -> Path | None:
+        value = self.get("experiments", "workspace_root", default=None)
+        if isinstance(value, str) and value:
+            return Path(value)
+        # Backward-compatible alias for the original LPD-ILT integration.
+        return self.auto_lithobench_root
+
+    @property
+    def auto_lithobench_root(self) -> Path | None:
+        value = self.get("experiments", "lithobench_root", default=None)
+        return Path(value) if isinstance(value, str) and value else None
+
+    @property
+    def auto_experiment_python(self) -> Path:
+        value = self.get("experiments", "python", default=sys.executable)
+        return Path(str(value or sys.executable))
+
 
 def load_config(
     yaml_path: Optional[Path] = None,
@@ -171,6 +204,14 @@ def load_config(
             "reviewer_independence": True,
             "human_checkpoint": False,
         },
+        "experiments": {
+            "auto": False,
+            "loop_root": None,
+            "project_profile": None,
+            "workspace_root": None,
+            "lithobench_root": None,
+            "python": sys.executable,
+        },
         "citation": {
             "dblp_endpoint": "https://dblp.org/search/publ/api",
             "dblp_bib_base": "https://dblp.org/rec",
@@ -198,6 +239,12 @@ def load_config(
         "OUTPUT_DIR": ("pipeline", "output_dir"),
         "ANONYMOUS": ("pipeline", "anonymous"),
         "KB_PATH": ("write", "kb_path"),
+        "AUTO_EXPERIMENTS": ("experiments", "auto"),
+        "LOOP_ROOT": ("experiments", "loop_root"),
+        "PROJECT_PROFILE": ("experiments", "project_profile"),
+        "WORKSPACE_ROOT": ("experiments", "workspace_root"),
+        "LITHOBENCH_ROOT": ("experiments", "lithobench_root"),
+        "EXPERIMENT_PYTHON": ("experiments", "python"),
     }
     for suffix, path in env_map.items():
         val = os.environ.get(f"{env_prefix}{suffix}")
@@ -210,7 +257,7 @@ def load_config(
             node[path[-1]] = float(val)
         elif suffix in ("MAX_TOKENS", "MAX_PAGES", "MAX_ROUNDS"):
             node[path[-1]] = int(val)
-        elif suffix == "ANONYMOUS":
+        elif suffix in ("ANONYMOUS", "AUTO_EXPERIMENTS"):
             node[path[-1]] = val.lower() in ("1", "true", "yes", "on")
         else:
             node[path[-1]] = val
