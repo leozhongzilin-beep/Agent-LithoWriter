@@ -231,6 +231,30 @@ python -m write_agent.cli --topic "..." --human-checkpoint     # pause per round
 python -m write_agent.cli --topic "..." --model deepseek-reasoner
 ```
 
+### Experiment-loop integration
+
+Use a structured Evidence Bundle to enable the two-way research loop. With
+`--auto-experiments`, a missing-evidence request is validated and accepted by
+`model-optimize-loop`, missing runs execute in the background, results are
+registered and returned, and writing resumes automatically:
+
+```bash
+python -m write_agent.cli --narrative NARRATIVE_REPORT.md --experiment-bundle evidence_bundle.json \
+  --auto-experiments --loop-root ../model-optimize-loop \
+  --project-profile ../model-optimize-loop/projects/lpd_ilt.yaml \
+  --workspace-root ../lithobench \
+  --experiment-python D:/ANACONDA/envs/lithobench/python.exe
+```
+
+For another team method, copy the project profile and change its runner,
+contract paths, and result layout. The legacy `--lithobench-root` flag remains
+available when no profile is supplied.
+
+Manual request conversion remains available as a recovery/debugging workflow.
+See
+[`docs/experiment-loop-integration.md`](docs/experiment-loop-integration.md)
+for the complete workflow and safety boundary.
+
 ### Options
 
 | Flag | Default | Description |
@@ -244,6 +268,14 @@ python -m write_agent.cli --topic "..." --model deepseek-reasoner
 | `--human-checkpoint` | off | Pause after each review round |
 | `--model` | `deepseek-chat` | `deepseek-chat` or `deepseek-reasoner` |
 | `--output-dir` | `./output` | Where `paper/` is created |
+| `--experiment-bundle` | unset | Enable experiment-aware writing from schema v1.0 evidence |
+| `--resume PAPER_DIR` | unset | Resume a paper waiting for experiment responses |
+| `--auto-experiments` | off | Dispatch requests, run missing experiments, return evidence, and resume automatically |
+| `--loop-root` | unset | Path to `model-optimize-loop` |
+| `--project-profile` | unset | YAML/JSON contract for the member method; omitted means legacy LPD-ILT mode |
+| `--workspace-root` | unset | Path to the member method's experiment repository |
+| `--lithobench-root` | unset | Deprecated alias for `--workspace-root` |
+| `--experiment-python` | current Python | Python executable containing the method's experiment environment |
 
 > **SPIE note**: the included example paper (`output/paper/main.pdf`) uses the
 > SPIE proceedings template (`spie.cls` + `spiebib.bst`). The built-in venue

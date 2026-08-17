@@ -171,9 +171,12 @@ def run_plan(
     config: Config,
     source: str,
     paper_dir: Path,
+    evidence_context: str = "",
 ) -> PlanResult:
     """Run Phase 1 planning and return a PlanResult."""
     input_text = load_input_text(source)
+    if evidence_context:
+        input_text = f"{input_text}\n\n{evidence_context}"
 
     claims_data = extract_claims(client, config, input_text)
     outline_data = build_outline(client, config, claims_data)
@@ -203,6 +206,9 @@ def run_plan(
                 "title": result.title,
                 "one_sentence_contribution": result.one_sentence_contribution,
                 "paper_type": result.paper_type,
+                "framing": result.framing,
+                "weaknesses": result.weaknesses,
+                "input_description": result.input_description,
                 "sections": result.sections,
                 "figure_plan": result.figure_plan,
                 "citation_plan": result.citation_plan,
@@ -214,3 +220,25 @@ def run_plan(
         encoding="utf-8",
     )
     return result
+
+
+def load_plan_json(path: Path) -> PlanResult:
+    """Restore a persisted plan for an evidence-resume run."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Cannot resume: plan file is missing: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Cannot resume: invalid plan JSON in {path}: {exc}") from exc
+    return PlanResult(
+        one_sentence_contribution=str(data.get("one_sentence_contribution", "")),
+        title=str(data.get("title", "Untitled Paper")),
+        claims=list(data.get("claims", [])),
+        weaknesses=list(data.get("weaknesses", [])),
+        framing=str(data.get("framing", "")),
+        paper_type=str(data.get("paper_type", "empirical")),
+        sections=normalize_sections(list(data.get("sections", []))),
+        figure_plan=list(data.get("figure_plan", [])),
+        citation_plan=dict(data.get("citation_plan", {})),
+        input_description=str(data.get("input_description", "")),
+    )
