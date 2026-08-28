@@ -12,12 +12,12 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 
 
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Recursively merge override into base."""
     result = dict(base)
     for k, v in override.items():
@@ -28,10 +28,10 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
     return result
 
 
-def load_yaml(path: Optional[Path]) -> Dict[str, Any]:
+def load_yaml(path: Path | None) -> dict[str, Any]:
     if path is None or not path.exists():
         return {}
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
@@ -39,7 +39,7 @@ def load_yaml(path: Optional[Path]) -> Dict[str, Any]:
 class Config:
     """Flat configuration object. Nested YAML sections are flattened."""
 
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
     # --- helpers ---
     def get(self, *path: str, default: Any = None) -> Any:
@@ -126,7 +126,7 @@ class Config:
 
 
 def load_config(
-    yaml_path: Optional[Path] = None,
+    yaml_path: Path | None = None,
     env_prefix: str = "WRITING_AGENT_",
 ) -> Config:
     """Load config from defaults + config.yaml + environment overrides.
@@ -143,7 +143,7 @@ def load_config(
         WRITING_AGENT_OUTPUT_DIR        -> pipeline.output_dir
     """
     # defaults
-    data: Dict[str, Any] = {
+    data: dict[str, Any] = {
         "model": {
             "name": "deepseek-chat",
             "base_url": "https://api.deepseek.com/v1",

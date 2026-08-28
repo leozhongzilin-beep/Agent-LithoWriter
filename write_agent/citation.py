@@ -15,11 +15,8 @@ from __future__ import annotations
 
 import json
 import re
-import time
-import urllib.parse
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import requests
 
@@ -67,18 +64,18 @@ class CitationResolver:
     """Verify and resolve citation hints into real BibTeX entries."""
 
     def __init__(self, config: Config, timeout: int = 20,
-                 kb: Optional[KbProvider] = None):
+                 kb: KbProvider | None = None):
         self.config = config
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": "writing-agent/0.1 (academic citation verifier)"})
-        self._cache: Dict[str, VerifiedEntry] = {}
+        self._cache: dict[str, VerifiedEntry] = {}
         self.kb = kb if kb is not None else build_kb_provider(config)
 
     # ------------------------------------------------------------------
     # DBLP
     # ------------------------------------------------------------------
-    def dblp_search(self, query: str, max_results: int = 3) -> List[dict]:
+    def dblp_search(self, query: str, max_results: int = 3) -> list[dict]:
         url = self.config.get("citation", "dblp_endpoint", default="https://dblp.org/search/publ/api")
         params = {"q": query, "format": "json", "h": max_results}
         try:
@@ -94,7 +91,7 @@ class CitationResolver:
         except (requests.RequestException, json.JSONDecodeError):
             return []
 
-    def dblp_fetch_bib(self, dblp_key: str) -> Optional[str]:
+    def dblp_fetch_bib(self, dblp_key: str) -> str | None:
         """Fetch real BibTeX for a DBLP key like conf/nips/VaswaniSPUJGKP17."""
         url = f"{self.config.get('citation', 'dblp_bib_base', default='https://dblp.org/rec')}/{dblp_key}.bib"
         try:
@@ -107,7 +104,7 @@ class CitationResolver:
     # ------------------------------------------------------------------
     # CrossRef
     # ------------------------------------------------------------------
-    def crossref_by_doi(self, doi: str) -> Optional[str]:
+    def crossref_by_doi(self, doi: str) -> str | None:
         """Fetch BibTeX from CrossRef via DOI."""
         url = f"https://doi.org/{doi}"
         try:
@@ -123,7 +120,7 @@ class CitationResolver:
         except requests.RequestException:
             return None
 
-    def crossref_search(self, query: str, max_results: int = 5) -> List[dict]:
+    def crossref_search(self, query: str, max_results: int = 5) -> list[dict]:
         """Search CrossRef API for a title query."""
         url = "https://api.crossref.org/works"
         params = {"query.title": query, "rows": max_results, "select": "title,DOI,author,issued,container-title,volume,page"}
@@ -135,7 +132,7 @@ class CitationResolver:
         except (requests.RequestException, json.JSONDecodeError):
             return []
 
-    def crossref_entry_to_bibtex(self, item: dict, key: str) -> Optional[str]:
+    def crossref_entry_to_bibtex(self, item: dict, key: str) -> str | None:
         """Convert a CrossRef work item to BibTeX text."""
         try:
             title = item.get("title", [""])[0]
@@ -261,7 +258,7 @@ class CitationResolver:
     # ------------------------------------------------------------------
     # Main entry points
     # ------------------------------------------------------------------
-    def resolve_query(self, query: str) -> Optional[VerifiedEntry]:
+    def resolve_query(self, query: str) -> VerifiedEntry | None:
         """Resolve a citation *topic hint* to a verified BibTeX entry.
 
         Strategy: try DBLP (title-similarity filtered), then CrossRef. If both
@@ -345,7 +342,7 @@ class CitationResolver:
         )
         return self._cache[query]
 
-    def _resolve_from_kb(self, query: str) -> Optional[VerifiedEntry]:
+    def _resolve_from_kb(self, query: str) -> VerifiedEntry | None:
         """Resolve a hint against the Literature KB, or None to fall through.
 
         Acceptance: non-empty BibTeX AND (the hint IS the KB citation_key OR
@@ -375,15 +372,15 @@ class CitationResolver:
         return None
 
 
-def extract_cited_keys(bib_text: str) -> List[str]:
+def extract_cited_keys(bib_text: str) -> list[str]:
     """Return the citation keys present in a bib file."""
     keys = re.findall(r"@\w+\{([^,]+),", bib_text)
     return [k.strip() for k in keys]
 
 
-def write_bibliography(entries: List[VerifiedEntry], path: Path) -> int:
+def write_bibliography(entries: list[VerifiedEntry], path: Path) -> int:
     """Write a .bib file from verified entries, deduped by key. Returns entry count."""
-    seen: Dict[str, str] = {}
+    seen: dict[str, str] = {}
     for e in entries:
         if not e.bibtex:
             continue

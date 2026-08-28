@@ -20,7 +20,7 @@ import re
 import shutil
 import sqlite3
 from collections.abc import Callable, Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -378,7 +378,7 @@ class KBStore:
             "UPDATE papers SET doi = ?, bibtex_key = ?, citation_cache = ?, "
             "updated_at = ? WHERE paper_id = ?",
             (doi, bibtex_key, cache,
-             datetime.now(timezone.utc).isoformat(timespec="seconds"), paper_id),
+             datetime.now(UTC).isoformat(timespec="seconds"), paper_id),
         )
         self.conn.commit()
 

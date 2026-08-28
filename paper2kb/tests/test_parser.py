@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from paper2kb.parser import ParsedDoc, UnsupportedFormat, parse_source
 
 _MD = (

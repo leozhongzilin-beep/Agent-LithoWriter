@@ -14,8 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from write_agent.config import load_config
-from write_agent.pipeline import Pipeline
+from write_agent.config import load_config  # noqa: E402
+from write_agent.pipeline import Pipeline  # noqa: E402
 
 
 class MockClient:
@@ -119,9 +119,9 @@ def _mock_fix_response():
     return _MockResult("\n".join(parts))
 
 
-def test_full_pipeline(tmp_dir: Path) -> None:
+def test_full_pipeline(tmp_path: Path) -> None:
     cfg = load_config()
-    cfg.data["pipeline"]["output_dir"] = str(tmp_dir)
+    cfg.data["pipeline"]["output_dir"] = str(tmp_path)
     cfg.data["model"]["name"] = "mock"
     cfg.data["review"]["max_rounds"] = 1
     cfg.data["review"]["min_score"] = 6.0
@@ -135,7 +135,7 @@ def test_full_pipeline(tmp_dir: Path) -> None:
 
     assert "error" not in report, f"Pipeline errored: {report.get('error')}"
     assert report["plan"]["title"]
-    paper = Path(tmp_dir) / "paper"
+    paper = Path(tmp_path) / "paper"
     assert (paper / "main.tex").exists(), "main.tex missing"
     assert (paper / "PAPER_PLAN.md").exists(), "PAPER_PLAN.md missing"
     sections = (paper / "sections")
@@ -146,9 +146,9 @@ def test_full_pipeline(tmp_dir: Path) -> None:
     print(f"PASS: full pipeline smoke test. Sections: {files}")
 
 
-def test_fix_parser(tmp_dir: Path) -> None:
+def test_fix_parser(tmp_path: Path) -> None:
     from write_agent.phases.review import _parse_fixed_sections
-    text = """
+    text = r"""
 ===== BEGIN FILE: 1_introduction.tex =====
 \section{Introduction}
 Fixed intro.
@@ -164,7 +164,7 @@ Fixed method.
     print("PASS: fix parser")
 
 
-def test_json_extract(tmp_dir: Path) -> None:
+def test_json_extract(tmp_path: Path) -> None:
     from write_agent.llm import extract_json, extract_json_array
     obj = extract_json('```json\n{"a": 1}\n```')
     assert obj == {"a": 1}, obj
@@ -175,18 +175,18 @@ def test_json_extract(tmp_dir: Path) -> None:
     print("PASS: json extraction")
 
 
-def test_bib_write(tmp_dir: Path) -> None:
+def test_bib_write(tmp_path: Path) -> None:
     from write_agent.citation import VerifiedEntry, write_bibliography
     e1 = VerifiedEntry(key="vaswani2017attention", bibtex="@article{vaswani2017attention,\n  title={Attention Is All You Need},\n}")
     e2 = VerifiedEntry(key="vaswani2017attention", bibtex="@article{vaswani2017attention,\n  title={DUPLICATE},\n}")
-    n = write_bibliography([e1, e2], Path(tmp_dir) / "references.bib")
+    n = write_bibliography([e1, e2], Path(tmp_path) / "references.bib")
     assert n == 1, f"Expected 1 deduped entry, got {n}"
-    text = (Path(tmp_dir) / "references.bib").read_text()
+    text = (Path(tmp_path) / "references.bib").read_text()
     assert "DUPLICATE" not in text
     print("PASS: bib dedup")
 
 
-def test_make_key(tmp_dir: Path) -> None:
+def test_make_key(tmp_path: Path) -> None:
     from write_agent.citation import make_key
     k = make_key("Attention Is All You Need", "2017", "Vaswani, Ashish")
     assert k == "vaswani2017attention", k

@@ -14,11 +14,10 @@ from __future__ import annotations
 
 import json
 import re
-import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .. import prompts, tex
 from ..config import Config
@@ -31,14 +30,14 @@ class ReviewRound:
     score: float
     verdict: str
     summary: str
-    strengths: List[str] = field(default_factory=list)
-    weaknesses: List[Dict[str, str]] = field(default_factory=list)
+    strengths: list[str] = field(default_factory=list)
+    weaknesses: list[dict[str, str]] = field(default_factory=list)
     raw_response: str = ""
 
 
 @dataclass
 class ReviewResult:
-    rounds: List[ReviewRound] = field(default_factory=list)
+    rounds: list[ReviewRound] = field(default_factory=list)
     final_score: float = 0.0
     final_verdict: str = "not ready"
     stopped_reason: str = ""
@@ -46,7 +45,7 @@ class ReviewResult:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class ReviewLoopState:
@@ -55,7 +54,7 @@ class ReviewLoopState:
     def __init__(self, paper_dir: Path):
         self.path = paper_dir / "REVIEW_STATE.json"
 
-    def load(self) -> Optional[Dict[str, Any]]:
+    def load(self) -> dict[str, Any] | None:
         if not self.path.exists():
             return None
         try:
@@ -63,16 +62,16 @@ class ReviewLoopState:
         except (json.JSONDecodeError, OSError):
             return None
 
-    def save(self, state: Dict[str, Any]) -> None:
+    def save(self, state: dict[str, Any]) -> None:
         self.path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    def complete(self, final: Dict[str, Any]) -> None:
+    def complete(self, final: dict[str, Any]) -> None:
         final["status"] = "completed"
         final["timestamp"] = _now_iso()
         self.save(final)
 
 
-def _parse_review_json(text: str) -> Dict[str, Any]:
+def _parse_review_json(text: str) -> dict[str, Any]:
     """Parse a review JSON response, with fallbacks for common formats."""
     from ..llm import extract_json
 
@@ -100,7 +99,7 @@ def _parse_review_json(text: str) -> Dict[str, Any]:
     return obj
 
 
-def _run_review(client: DeepSeekClient, config: Config, paper_text: str, round_num: int) -> Dict[str, Any]:
+def _run_review(client: DeepSeekClient, config: Config, paper_text: str, round_num: int) -> dict[str, Any]:
     """Run a single zero-context review round."""
     system = prompts.SYSTEM_REVIEWER.format(venue=config.venue, language=config.language)
     if round_num <= 1:
@@ -111,7 +110,7 @@ def _run_review(client: DeepSeekClient, config: Config, paper_text: str, round_n
     return _parse_review_json(result.text)
 
 
-def _parse_fixed_sections(fix_text: str) -> Dict[str, str]:
+def _parse_fixed_sections(fix_text: str) -> dict[str, str]:
     """Parse the fixer's output into {filename: latex_body}.
 
     Expected format:
@@ -119,7 +118,7 @@ def _parse_fixed_sections(fix_text: str) -> Dict[str, str]:
         ...
         ===== END FILE: 1_introduction.tex =====
     """
-    files: Dict[str, str] = {}
+    files: dict[str, str] = {}
     pattern = re.compile(
         r"===== BEGIN FILE:\s*([^\s=]+)\.tex\s*=====(.*?)===== END FILE:\s*\1\.tex\s*=====",
         re.DOTALL,
@@ -140,8 +139,8 @@ def _apply_fixes(
     config: Config,
     paper_dir: Path,
     paper_text: str,
-    review: Dict[str, Any],
-) -> List[str]:
+    review: dict[str, Any],
+) -> list[str]:
     """Apply reviewer feedback via the fixer model. Returns list of changed files."""
     system = prompts.SYSTEM_FIXER.format(venue=config.venue, language=config.language)
     review_json = json.dumps(review, ensure_ascii=False, indent=2)
@@ -166,7 +165,7 @@ def _apply_fixes(
     return changed
 
 
-def _write_review_log(paper_dir: Path, rounds: List[ReviewRound]) -> None:
+def _write_review_log(paper_dir: Path, rounds: list[ReviewRound]) -> None:
     """Write/append the cumulative review log PAPER_REVIEW_LOG.md."""
     log_path = paper_dir / "PAPER_REVIEW_LOG.md"
     lines = ["# Paper Review Log", ""]
@@ -195,7 +194,7 @@ def run_review_loop(
     client: DeepSeekClient,
     config: Config,
     paper_dir: Path,
-    max_rounds: Optional[int] = None,
+    max_rounds: int | None = None,
 ) -> ReviewResult:
     """Run the autonomous review -> fix -> re-review loop."""
     max_rounds = max_rounds or config.review_max_rounds
@@ -208,12 +207,12 @@ def run_review_loop(
     # Recovery check
     saved = state_file.load()
     start_round = 1
-    rounds: List[ReviewRound] = []
+    rounds: list[ReviewRound] = []
     if saved and saved.get("status") == "in_progress":
         saved_ts = saved.get("timestamp", "")
         try:
             saved_dt = datetime.fromisoformat(saved_ts)
-            age_hours = (datetime.now(timezone.utc) - saved_dt).total_seconds() / 3600
+            age_hours = (datetime.now(UTC) - saved_dt).total_seconds() / 3600
         except (ValueError, TypeError):
             age_hours = 999
         if age_hours <= 24:
@@ -316,7 +315,7 @@ def run_review_loop(
     return result
 
 
-def _load_rounds_from_log(paper_dir: Path) -> List[ReviewRound]:
+def _load_rounds_from_log(paper_dir: Path) -> list[ReviewRound]:
     """Best-effort reload of prior rounds from PAPER_REVIEW_LOG.md."""
     log_path = paper_dir / "PAPER_REVIEW_LOG.md"
     if not log_path.exists():

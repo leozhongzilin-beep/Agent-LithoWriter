@@ -275,7 +275,7 @@ def search_l4(
     scores = [h["score"] for h in hits]
     norm = relevance.normalize(scores)
     out: list[ResultItem] = []
-    for h, rel in zip(hits, norm):
+    for h, rel in zip(hits, norm, strict=True):
         paper = store.get_paper(h["paper_id"]) or {}
         section = h.get("section") or ""
         out.append(ResultItem(

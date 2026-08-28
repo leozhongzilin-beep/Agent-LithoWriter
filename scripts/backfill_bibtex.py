@@ -23,9 +23,8 @@ for _pkg in (_ROOT / "literature_kb", _ROOT):
     if str(_pkg) not in sys.path:
         sys.path.insert(0, str(_pkg))
 
-from kb import KBStore
-
-from paper2kb.metadata import fetch_bibtex
+from kb import KBStore  # noqa: E402
+from paper2kb.metadata import fetch_bibtex  # noqa: E402
 
 DEFAULT_KB_ROOT = _ROOT / "literature_kb" / "data"
 

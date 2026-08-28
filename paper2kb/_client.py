@@ -8,11 +8,16 @@ DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
 
 
 def api_key() -> str:
+    """Direct key when present; gateway credentials are resolved by write_agent."""
     key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
-    if not key:
+    gateway = (
+        os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
+        or os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    )
+    if not key and not gateway:
         raise OSError(
-            "DEEPSEEK_API_KEY is not set; export it or set it in .env "
-            "(run `paper2kb` from writing-agent/ with the key available)"
+            "No model credential is configured; set DEEPSEEK_API_KEY or run "
+            "inside the credentialed Claude Code gateway"
         )
     return key
 

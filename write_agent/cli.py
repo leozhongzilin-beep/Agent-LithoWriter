@@ -23,8 +23,8 @@ except ImportError:
     pass
 
 from .config import load_config
+from .llm import LLMError, has_model_credential
 from .pipeline import Pipeline
-from .llm import LLMError
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -75,15 +75,17 @@ def main(argv=None) -> int:
         print("Error: provide --topic or --narrative", file=sys.stderr)
         return 2
 
-    print(f"Writing agent starting...")
+    print("Writing agent starting...")
     print(f"  Input: {source}")
     print(f"  Venue: {cfg.venue} | Max pages: {cfg.max_pages} | Model: {cfg.model_name}")
     print(f"  Review rounds: {cfg.review_max_rounds} (min score {cfg.review_min_score})")
 
-    if not cfg.api_key:
-        print("\nERROR: DEEPSEEK_API_KEY not set.", file=sys.stderr)
-        print("  Copy .env.example to .env and add your key, or:", file=sys.stderr)
-        print("  export DEEPSEEK_API_KEY=sk-...", file=sys.stderr)
+    if not (cfg.api_key or has_model_credential()):
+        print("\nERROR: no model credential is configured.", file=sys.stderr)
+        print(
+            "  Set DEEPSEEK_API_KEY, or run inside the credentialed Claude Code gateway.",
+            file=sys.stderr,
+        )
         return 1
 
     try:
@@ -108,4 +110,10 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Some HTTP/gateway stacks leave a non-daemon cleanup thread alive after
+    # Pipeline.run has written its complete report. The conductor waits on this
+    # CLI process, so flush the final output and exit the process explicitly.
+    exit_code = main()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(exit_code)

@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from paper2kb.pipeline import process_paper
 from paper2kb.validate import human_review_triggers, validate
 

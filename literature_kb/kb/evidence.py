@@ -66,7 +66,7 @@ def search_evidence(
 
     norm = relevance.normalize([scores.get(eid, 0.0) for eid in cand_ids])
     out: list[EvidenceHit] = []
-    for eid, rel in zip(cand_ids, norm):
+    for eid, rel in zip(cand_ids, norm, strict=True):
         row = rows_by_id[eid]
         out.append(EvidenceHit(
             evidence_id=eid,

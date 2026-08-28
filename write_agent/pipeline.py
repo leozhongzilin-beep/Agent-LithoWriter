@@ -6,25 +6,24 @@ This is the state machine that runs the full writing agent end-to-end.
 from __future__ import annotations
 
 import json
-import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from . import prompts, tex
 from .citation import CitationResolver
 from .config import Config
-from .llm import DeepSeekClient, LLMError
+from .llm import DeepSeekClient, LLMError, build_client
 from .phases import plan as plan_phase
 from .phases import review as review_phase
 from .phases import write as write_phase
 
 
 class Pipeline:
-    def __init__(self, config: Config, verbose: bool = True, client: Optional[DeepSeekClient] = None):
+    def __init__(self, config: Config, verbose: bool = True, client: DeepSeekClient | None = None):
         self.config = config
         self.verbose = verbose
-        self.client = client or DeepSeekClient(
+        self.client = client or build_client(
             api_key=config.api_key,
             base_url=config.base_url,
             model=config.model_name,
@@ -45,10 +44,10 @@ class Pipeline:
     def run(
         self,
         source: str,
-        paper_dir: Optional[Path] = None,
-        max_rounds: Optional[int] = None,
+        paper_dir: Path | None = None,
+        max_rounds: int | None = None,
         skip_review: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run the full pipeline.
 
         Args:
@@ -61,10 +60,10 @@ class Pipeline:
         paper_dir.mkdir(parents=True, exist_ok=True)
         tex.create_project_structure(paper_dir, paper_dir / "sections")
 
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "input": source,
             "venue": self.config.venue,
-            "date": datetime.now(timezone.utc).isoformat(),
+            "date": datetime.now(UTC).isoformat(),
             "model": self.config.model_name,
         }
 
@@ -159,14 +158,14 @@ class Pipeline:
         return report
 
     # ------------------------------------------------------------------
-    def _finalize(self, paper_dir: Path) -> Dict[str, Any]:
+    def _finalize(self, paper_dir: Path) -> dict[str, Any]:
         """Run the final quality audit (5 passes) + consistency checks.
 
         Uses the LLM for the 5-pass audit, plus deterministic checks for
         duplicate labels and citation keys without bib entries.
         """
         paper_text = tex.read_all_sections(paper_dir)
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
 
         # Deterministic: duplicate labels
         dups = tex.ensure_labels_unique(paper_text)
@@ -175,7 +174,7 @@ class Pipeline:
         # Deterministic: cited keys vs references.bib
         cited = tex.extract_citation_keys(paper_text)
         bib_path = paper_dir / "references.bib"
-        bib_keys: List[str] = []
+        bib_keys: list[str] = []
         if bib_path.exists():
             bib_text = bib_path.read_text(encoding="utf-8", errors="ignore")
             from .citation import extract_cited_keys
@@ -198,7 +197,7 @@ class Pipeline:
         return result
 
     # ------------------------------------------------------------------
-    def _render_report(self, report: Dict[str, Any]) -> str:
+    def _render_report(self, report: dict[str, Any]) -> str:
         try:
             plan = report.get("plan", {})
             review = report.get("review", {})

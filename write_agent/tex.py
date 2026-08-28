@@ -11,10 +11,9 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Venue -> (documentclass line, packages, bib style, citation command)
-VENUE_TEMPLATES: Dict[str, Dict[str, str]] = {
+VENUE_TEMPLATES: dict[str, dict[str, str]] = {
     "ICLR": {
         "documentclass": r"\documentclass{article}",
         "style_package": r"\usepackage{iclr2026_conference,times}",
@@ -73,10 +72,10 @@ def citation_command(venue: str) -> str:
 def build_main_tex(
     title: str,
     venue: str,
-    section_filenames: List[str],
+    section_filenames: list[str],
     anonymous: bool = True,
     bibliography: str = "references",
-    max_pages_hint: Optional[int] = None,
+    max_pages_hint: int | None = None,
 ) -> str:
     """Build the master main.tex that \\input{}s each section file.
 
@@ -196,7 +195,7 @@ def read_all_sections(paper_dir: Path) -> str:
     return "\n\n".join(parts)
 
 
-def extract_citation_keys(tex_text: str) -> List[str]:
+def extract_citation_keys(tex_text: str) -> list[str]:
     """Extract unique citation keys from \\cite{...}, \\citep{...}, \\citet{...}."""
     keys = set()
     for m in re.finditer(r"\\cite[a-zA-Z]*\{([^}]*)\}", tex_text):
@@ -235,7 +234,7 @@ def sanitize_citations(body: str, allowed_keys: set[str]) -> tuple[str, list[str
     return _CITE_CMD_RE.sub(_replace, body), dropped
 
 
-def ensure_labels_unique(tex_text: str) -> List[str]:
+def ensure_labels_unique(tex_text: str) -> list[str]:
     """Return list of duplicate \\label values (blocking in final checks)."""
     labels = re.findall(r"\\label\{([^}]*)\}", tex_text)
     seen = {}

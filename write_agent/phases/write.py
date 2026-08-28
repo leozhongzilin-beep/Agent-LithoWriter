@@ -16,19 +16,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .. import prompts, tex
 from ..citation import CitationResolver
 from ..config import Config
-from ..llm import DeepSeekClient, LLMError
+from ..llm import DeepSeekClient
 
 
 @dataclass
 class WriteResult:
-    section_files: List[str] = field(default_factory=list)
-    citation_keys: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    section_files: list[str] = field(default_factory=list)
+    citation_keys: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 def build_paper_context(config: Config, plan: Any) -> str:
@@ -47,7 +47,7 @@ def build_paper_context(config: Config, plan: Any) -> str:
     )
 
 
-def build_section_spec(section: Dict[str, Any]) -> str:
+def build_section_spec(section: dict[str, Any]) -> str:
     """Render a section dict into a spec block for the prompt."""
     lines = [
         f"Section {section.get('id', '?')}: {section.get('title', '')}",
@@ -64,16 +64,16 @@ def build_section_spec(section: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def related_work_topics(section: Dict[str, Any]) -> List[str]:
+def related_work_topics(section: dict[str, Any]) -> list[str]:
     """Category/topic hints for a section, deduplicated and order-preserving."""
-    out: List[str] = []
+    out: list[str] = []
     for h in section.get("citations_hint", []) + section.get("key_points", []):
         if h and h not in out:
             out.append(h)
     return out
 
 
-def format_kb_cards(cards: List[Tuple[Any, str]]) -> str:
+def format_kb_cards(cards: list[tuple[Any, str]]) -> str:
     """Render citable KB cards as a prompt block. cards = [(KbCard, draft_key), ...]."""
     if not cards:
         return ""
@@ -85,11 +85,11 @@ def format_kb_cards(cards: List[Tuple[Any, str]]) -> str:
 
 def ground_related_work(
     provider: Any,
-    section: Dict[str, Any],
+    section: dict[str, Any],
     config: Config,
     resolver: CitationResolver,
-    citation_keys: List[str],
-    resolved_entries: List[Any],
+    citation_keys: list[str],
+    resolved_entries: list[Any],
     seen_hints: set,
 ) -> str:
     """Ground related-work writing in KB cards.
@@ -99,7 +99,7 @@ def ground_related_work(
     with BibTeX) are formatted. Mutates citation_keys / resolved_entries in
     place so the final write_bibliography picks them up.
     """
-    citable: List[Tuple[Any, str]] = []
+    citable: list[tuple[Any, str]] = []
     limit = config.kb_discovery_per_category
     for topic in related_work_topics(section):
         for card in provider.discover_cards(topic, max_tokens=800, limit=limit):
@@ -134,9 +134,9 @@ def _write_generic_section(
     client: DeepSeekClient,
     config: Config,
     paper_context: str,
-    section: Dict[str, Any],
+    section: dict[str, Any],
     written_so_far: str,
-    citation_keys: List[str],
+    citation_keys: list[str],
     kb_cards: str = "",
 ) -> str:
     title = section.get("title", "").lower()
@@ -189,7 +189,7 @@ def run_write(
     config: Config,
     plan: Any,
     paper_dir: Path,
-    citation_resolver: Optional[CitationResolver] = None,
+    citation_resolver: CitationResolver | None = None,
 ) -> WriteResult:
     """Generate all section LaTeX files from the plan."""
     sections_dir = paper_dir / "sections"
@@ -202,14 +202,14 @@ def run_write(
     paper_context = build_paper_context(config, plan)
 
     # Pre-resolve citation hints into real bib entries.
-    citation_keys: List[str] = []
+    citation_keys: list[str] = []
     resolved_entries = []
     seen_hints: set = set()
     if citation_resolver is not None:
         hint_list = []
         for s in plan.sections:
             hint_list.extend(s.get("citations_hint", []))
-        for k, v in (plan.citation_plan or {}).items():
+        for v in (plan.citation_plan or {}).values():
             if isinstance(v, list):
                 hint_list.extend(v)
         # de-dup hints preserving order
@@ -221,7 +221,7 @@ def run_write(
                     resolved_entries.append(entry)
                     citation_keys.append(entry.key)
 
-    written_files: List[str] = []
+    written_files: list[str] = []
     written_so_far = ""
     warnings: list[str] = []
 

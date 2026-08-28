@@ -47,7 +47,7 @@ def search_formulas(
 
     norm = relevance.normalize([scores.get(f, 0.0) for f in fids])
     out: list[FormulaHit] = []
-    for fid, rel in zip(fids, norm):
+    for fid, rel in zip(fids, norm, strict=True):
         row = rows_by_id[fid]
         out.append(FormulaHit(
             formula_id=fid,

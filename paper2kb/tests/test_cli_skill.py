@@ -6,7 +6,6 @@ import json
 import re
 
 import pytest
-
 from paper2kb.cli import main
 from paper2kb.metadata import BibRecord
 

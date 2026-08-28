@@ -11,28 +11,28 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from .. import prompts
 from ..config import Config
 from ..llm import DeepSeekClient, LLMError
-from .. import prompts
 
 
 @dataclass
 class PlanResult:
     one_sentence_contribution: str = ""
     title: str = ""
-    claims: List[Dict[str, Any]] = field(default_factory=list)
-    weaknesses: List[str] = field(default_factory=list)
+    claims: list[dict[str, Any]] = field(default_factory=list)
+    weaknesses: list[str] = field(default_factory=list)
     framing: str = ""
     paper_type: str = "empirical"
-    sections: List[Dict[str, Any]] = field(default_factory=list)
-    figure_plan: List[Dict[str, Any]] = field(default_factory=list)
-    citation_plan: Dict[str, Any] = field(default_factory=dict)
+    sections: list[dict[str, Any]] = field(default_factory=list)
+    figure_plan: list[dict[str, Any]] = field(default_factory=list)
+    citation_plan: dict[str, Any] = field(default_factory=dict)
     input_description: str = ""
 
     @property
-    def section_filenames(self) -> List[str]:
+    def section_filenames(self) -> list[str]:
         return [s.get("filename", f"{s.get('id', '')}_{s.get('title', 'section').lower()}.tex")
                 for s in self.sections]
 
@@ -49,17 +49,17 @@ def load_input_text(source: str) -> str:
     return source
 
 
-def extract_claims(client: DeepSeekClient, config: Config, input_text: str) -> Dict[str, Any]:
+def extract_claims(client: DeepSeekClient, config: Config, input_text: str) -> dict[str, Any]:
     """Extract claims-evidence matrix + framing from the input material."""
     system = prompts.SYSTEM_PLANNER.format(language=config.language, venue=config.venue, max_pages=config.max_pages)
     user = prompts.PLAN_EXTRACT_CLAIMS.format(input_text=input_text)
     try:
         return client.chat_json(system=system, user=user, temperature=0.2, max_tokens=4096)
     except LLMError as e:
-        raise RuntimeError(f"Claim extraction failed: {e}")
+        raise RuntimeError(f"Claim extraction failed: {e}") from e
 
 
-def build_outline(client: DeepSeekClient, config: Config, claims_data: Dict[str, Any]) -> Dict[str, Any]:
+def build_outline(client: DeepSeekClient, config: Config, claims_data: dict[str, Any]) -> dict[str, Any]:
     """Build the section-by-section outline from the claims matrix."""
     claims_matrix = "\n".join(
         f"- [{c.get('status', '?')}] {c.get('claim', '')} -- evidence: {c.get('evidence', '')}"
@@ -80,7 +80,7 @@ def build_outline(client: DeepSeekClient, config: Config, claims_data: Dict[str,
     try:
         return client.chat_json(system=system, user=user, temperature=0.3, max_tokens=8192)
     except LLMError as e:
-        raise RuntimeError(f"Outline generation failed: {e}")
+        raise RuntimeError(f"Outline generation failed: {e}") from e
 
 
 def sanitize_section_filename(name: str) -> str:
@@ -91,7 +91,7 @@ def sanitize_section_filename(name: str) -> str:
     return name
 
 
-def normalize_sections(sections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def normalize_sections(sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Normalize section dicts, ensuring abstract is section 0 and filenames are safe."""
     result = []
     seen_ids = set()

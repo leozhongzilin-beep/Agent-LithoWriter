@@ -7,11 +7,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "literature_kb"))
 
-from write_agent.config import load_config
-from write_agent.kb_bridge import KbCard, KbResolved, build_kb_provider
-
-from kb.importtool import import_package
-from kb.store import KBStore
+from kb.importtool import import_package  # noqa: E402
+from kb.store import KBStore  # noqa: E402
+from write_agent.config import load_config  # noqa: E402
+from write_agent.kb_bridge import KbCard, KbResolved, build_kb_provider  # noqa: E402
 
 
 def _make_package():

@@ -8,6 +8,7 @@ fake embedder and depends only on the protocol in `embedder.py`.
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any
 
 import numpy as np
@@ -42,7 +43,7 @@ def store_embeddings(
             "DELETE FROM embeddings WHERE paper_id = ? AND object_type = ?",
             (paper_id, object_type),
         )
-        for (oid, _text), vec in zip(items, mat):
+        for (oid, _text), vec in zip(items, mat, strict=True):
             store.conn.execute(
                 "INSERT INTO embeddings (paper_id, object_type, object_id, "
                 "model, model_version, vector, created_at) VALUES (?,?,?,?,?,?,?)",
@@ -124,5 +125,5 @@ def embed_paper(
 
 
 def _ts() -> str:
-    from datetime import datetime, timezone
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    from datetime import datetime
+    return datetime.now(UTC).isoformat(timespec="seconds")

@@ -69,9 +69,9 @@ def _pdf_metadata(path) -> dict[str, Any] | None:
 
 
 def make_llm(model: str | None = None, **kwargs):
-    """Production LLM client (DeepSeek). Raises on a missing API key."""
-    from write_agent.llm import DeepSeekClient  # type: ignore
+    """Production LLM client using direct DeepSeek or Claude Code's gateway."""
+    from write_agent.llm import build_client  # type: ignore
 
     from ._client import api_key, base_url  # type: ignore
 
-    return DeepSeekClient(api_key=api_key(), base_url=base_url(), model=model, **kwargs)
+    return build_client(api_key=api_key(), base_url=base_url(), model=model, **kwargs)

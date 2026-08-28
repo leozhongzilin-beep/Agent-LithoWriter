@@ -7,10 +7,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "literature_kb"))
 
-from write_agent.config import load_config
-from write_agent.pipeline import Pipeline
-
-from kb.importtool import import_package
+from kb.importtool import import_package  # noqa: E402
+from write_agent.config import load_config  # noqa: E402
+from write_agent.pipeline import Pipeline  # noqa: E402
 
 
 def _seed_kb(root: Path) -> None:
